@@ -1,0 +1,1 @@
+ct_run -dir ./testdir -suite x_SUITE y_SUITE

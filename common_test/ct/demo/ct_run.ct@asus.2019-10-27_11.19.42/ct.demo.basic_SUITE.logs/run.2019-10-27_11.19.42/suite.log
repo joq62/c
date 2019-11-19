@@ -1,0 +1,84 @@
+=== Suite started at 2019-10-27 11:19:42
+=== Starting test, 2 test cases
+=cases         2
+=user          pi
+=host          asus
+=hosts         asus 
+=emulator_vsn  10.4.2
+=emulator      beam
+=otp_release   23
+=started       2019-10-27 11:19:42
+=case          ct_framework:init_per_suite
+=logfile       ct_framework.init_per_suite.html
+=group_props   [{suite,basic_SUITE}]
+=started       2019-10-27 11:19:42
+=ended         2019-10-27 11:19:42
+=result        ok
+=elapsed       2.0e-6
+=case          basic_SUITE:test1
+=logfile       basic_suite.test1.html
+=started       2019-10-27 11:19:42
+=ended         2019-10-27 11:19:42
+=result        failed: {error,
+                        {ct_framework,init_tc,
+                         {function_clause,
+                          [{ct_hooks,init_tc,
+                            [basic_SUITE,test1,
+                             [{tc_logfile,
+                               "/home/pi/erlang/a/common_test/ct/demo/ct_run.ct@asus.2019-10-27_11.19.42/ct.demo.basic_SUITE.logs/run.2019-10-27_11.19.42/basic_suite.test1.html"},
+                              {tc_group_properties,[{suite,basic_SUITE}]},
+                              {tc_group_path,[]},
+                              {data_dir,
+                               "/home/pi/erlang/a/common_test/ct/demo/basic_SUITE_data/"},
+                              {priv_dir,
+                               "/home/pi/erlang/a/common_test/ct/demo/ct_run.ct@asus.2019-10-27_11.19.42/ct.demo.basic_SUITE.logs/run.2019-10-27_11.19.42/log_private/"}]],
+                            [{file,"ct_hooks.erl"},{line,118}]},
+                           {ct_framework,ct_suite_init,4,
+                            [{file,"ct_framework.erl"},{line,280}]},
+                           {test_server_sup,framework_call,4,
+                            [{file,"test_server_sup.erl"},{line,772}]},
+                           {test_server,run_test_case_eval,9,
+                            [{file,"test_server.erl"},{line,920}]}]}}}, {ct_framework,
+                                                                         init_tc}
+=== *** FAILED test case 1 of 2 ***
+=case          basic_SUITE:test2
+=logfile       basic_suite.test2.html
+=started       2019-10-27 11:19:42
+=ended         2019-10-27 11:19:42
+=result        failed: {error,
+                        {ct_framework,init_tc,
+                         {function_clause,
+                          [{ct_hooks,init_tc,
+                            [basic_SUITE,test2,
+                             [{tc_logfile,
+                               "/home/pi/erlang/a/common_test/ct/demo/ct_run.ct@asus.2019-10-27_11.19.42/ct.demo.basic_SUITE.logs/run.2019-10-27_11.19.42/basic_suite.test2.html"},
+                              {tc_group_properties,[{suite,basic_SUITE}]},
+                              {tc_group_path,[]},
+                              {data_dir,
+                               "/home/pi/erlang/a/common_test/ct/demo/basic_SUITE_data/"},
+                              {priv_dir,
+                               "/home/pi/erlang/a/common_test/ct/demo/ct_run.ct@asus.2019-10-27_11.19.42/ct.demo.basic_SUITE.logs/run.2019-10-27_11.19.42/log_private/"}]],
+                            [{file,"ct_hooks.erl"},{line,118}]},
+                           {ct_framework,ct_suite_init,4,
+                            [{file,"ct_framework.erl"},{line,280}]},
+                           {test_server_sup,framework_call,4,
+                            [{file,"test_server_sup.erl"},{line,772}]},
+                           {test_server,run_test_case_eval,9,
+                            [{file,"test_server.erl"},{line,920}]}]}}}, {ct_framework,
+                                                                         init_tc}
+=== *** FAILED test case 2 of 2 ***
+=case          ct_framework:end_per_suite
+=logfile       ct_framework.end_per_suite.html
+=group_props   [{suite,basic_SUITE}]
+=started       2019-10-27 11:19:42
+=ended         2019-10-27 11:19:42
+=result        ok
+=elapsed       1.0e-6
+=group_time    0.083s
+=== TEST COMPLETE, 0 ok, 2 failed of 2 test cases
+
+=finished      2019-10-27 11:19:42
+=failed        2
+=successful    0
+=user_skipped  0
+=auto_skipped  0

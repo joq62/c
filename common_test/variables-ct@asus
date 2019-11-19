@@ -1,0 +1,4 @@
+{config,[{ct_config_plain,["/home/pi/erlang/a/common_test/adder.spec"]}]}.
+{event_handler,[]}.
+{ct_hooks,[]}.
+{enable_builtin_hooks,undefined}.

@@ -1,0 +1,6 @@
+{watchdog,<0.158.0>}
+{tc_logfile,"/home/pi/erlang/a/common_test/ct_run.ct@asus.2019-10-27_12.53.01/test_suites.adder_service.logs/run.2019-10-27_12.53.01/adder_service_suite.init_per_suite.html"}
+{tc_group_properties,[]}
+{tc_group_path,[]}
+{data_dir,"/home/pi/erlang/a/common_test/test_suites/adder_service/adder_service_SUITE_data/"}
+{priv_dir,"/home/pi/erlang/a/common_test/ct_run.ct@asus.2019-10-27_12.53.01/test_suites.adder_service.logs/run.2019-10-27_12.53.01/log_private/"}

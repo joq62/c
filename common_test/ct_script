@@ -1,0 +1,2 @@
+make adder
+ct_run -config adder.spec -dir test_suites/adder_service
