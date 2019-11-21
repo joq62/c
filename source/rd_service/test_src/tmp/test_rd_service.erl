@@ -44,6 +44,9 @@ init_test()->
     os:cmd("cp -r src/*.app board_w1/ebin"),
     rpc:call('board_w1@asus',code,add_path,[filename:join("board_w1","ebin")],5000),
     timer:sleep(100),
+%    rpc:call('board_w1@asus',rd_service,start_link,[]),
+ %   glurk=rpc:call('board_w2@asus',rd_service,start_link,[]),
+  %  glurk=rpc:call('board_w3@asus',rd_service,start_link,[]),
     [{Pod,rpc:call(Pod,rd_service,start_link,[])}||Pod<-Pods],
     {ok,_Pid}=rd_service:start_link(),
     ok.
@@ -59,7 +62,15 @@ load_resources_w1_test()->
     Target=[service_1_w2,service_1_w3,service_1_w1],
     [rpc:call('board_w1@asus',rd_service,add_local_resource,[Service,'board_w1@asus'])||Service<-Local],
     [rpc:call('board_w1@asus',rd_service,add_target_resource_type,[Service])||Service<-Target],
+    rpc:call('board_w1@asus',rd_service,trade_resources,[]),
+    rpc:call('board_w1@asus',rd_service,debug,[local]),
+    rpc:call('board_w1@asus',rd_service,debug,[found]),
+
+    rpc:call('board_w1@asus',rd_service,debug,[local,service_1_w1]),
+    rpc:call('board_w1@asus',rd_service,debug,[local,service_2_w1]),
     timer:sleep(300),
+    {ok,['board_w1@asus']}=rpc:call('board_w1@asus',rd_service,fetch_resources,[service_1_w1]),
+    error=rpc:call('board_w1@asus',rd_service,fetch_resources,[service_glurk_w1]),
     ok.
 
 load_resources_w2_test()->
@@ -72,39 +83,8 @@ load_resources_w2_test()->
  
     rpc:call('board_w2@asus',rd_service,debug,[found]),
     {ok,['board_w1@asus','board_w2@asus']}=rpc:call('board_w2@asus',rd_service,fetch_resources,[service_3_w1]),
-    error=rpc:call('board_w2@asus',rd_service,fetch_resources,[service_glurk_w1]),
-    
+    error=rpc:call('board_w2@asus',rd_service,fetch_resources,[service_glurk_w1]), 
     ok.
-
-load_resources_w3_test()->
-    Local=[service_1_w3,service_2_w3,service_3_w3],
-    Target=[],
-    [rpc:call('board_w3@asus',rd_service,add_local_resource,[Service,'board_w3@asus'])||Service<-Local],
-    [rpc:call('board_w3@asus',rd_service,add_target_resource_type,[Service])||Service<-Target],
-    rpc:call('board_w3@asus',rd_service,trade_resources,[]),
-    timer:sleep(300),
-    ok.
-
-get_resources_1_test()->
-     Local=[],
-    Target=[service_1_w2,service_1_w3,service_1_w1,service_1_w2,service_2_w2,service_3_w1,
-	    service_1_w3,service_2_w3,service_3_w3],
-    [rd_service:add_local_resource(Service,node())||Service<-Local],
-    [rd_service:add_target_resource_type(Service)||Service<-Target],
-    rd_service:trade_resources(),
-    timer:sleep(500),
-    R=[{Service,rd_service:fetch_resources(Service)}||Service<-Target],
-    [{ok,[board_w2@asus]},
-     {ok,[board_w3@asus]},
-     {ok,[board_w1@asus]},
-     {ok,[board_w2@asus]},
-     {ok,[board_w2@asus]},
-     {ok,[board_w2@asus,board_w1@asus]},
-     {ok,[board_w3@asus]},
-     {ok,[board_w3@asus]},
-     {ok,[board_w3@asus]}]=R,
-    ok.
-
 
 stop_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],

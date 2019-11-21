@@ -8,7 +8,7 @@
          add_local_resource/2,
          fetch_resources/1,
          trade_resources/0,
-	 debug/1
+	 debug/1,debug/2
         ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -42,6 +42,8 @@ trade_resources() ->
 
 debug(Type) ->
     gen_server:call(?SERVER, {debug,Type}).
+debug(Type,Service) ->
+    gen_server:call(?SERVER, {debug,Type,Service}).
 
 %% Callbacks
 
@@ -49,6 +51,19 @@ init([]) ->
     {ok, #state{target_resource_types = [],
                 local_resource_tuples = dict:new(),
                 found_resource_tuples = dict:new()}}.
+
+handle_call({debug,Type,Service}, _From, State) ->
+    Reply=case Type of
+	      state->
+		  State;
+	      local->
+		  dict:fetch(Service,State#state.local_resource_tuples);
+	      found->
+		  dict:find(Service,State#state.found_resource_tuples);
+	      target->
+		  dict:find(Service,State#state.target_resource_types)	      
+	  end,
+    {reply, Reply, State};
 
 handle_call({debug,Type}, _From, State) ->
     Reply=case Type of
