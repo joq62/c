@@ -4,7 +4,7 @@
 %%% Orchestrait applications and services dependent on application, 
 %%% services specifications and availiblity of nodes 
 %%% Load and start node_controller_services, lib_service and log_service
-%%% on each boards 
+%%% on each boards  
 %%% master controller holds the central service discovery 
 %%%   
 %%% Created : 10 dec 2012

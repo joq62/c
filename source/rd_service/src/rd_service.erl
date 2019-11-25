@@ -18,7 +18,8 @@
 
 -record(state, {target_resource_types,
                 local_resource_tuples,
-                found_resource_tuples}).
+                found_resource_tuples,
+		active_nodes}).
 
 %% API
 
@@ -48,7 +49,9 @@ debug(Type,Service) ->
 %% Callbacks
 
 init([]) ->
-    {ok, #state{target_resource_types = [],
+    ActiveNodes=[node()|nodes()],
+    {ok, #state{active_nodes=ActiveNodes,
+		target_resource_types = [],
                 local_resource_tuples = dict:new(),
                 found_resource_tuples = dict:new()}}.
 
@@ -72,9 +75,11 @@ handle_call({debug,Type}, _From, State) ->
 	      local->
 		  State#state.local_resource_tuples;
 	      found->
-		  State#state.found_resource_tuples;
+		   dict:to_list(State#state.found_resource_tuples);
 	      target->
-		  State#state.target_resource_types
+		  dict:to_list(State#state.target_resource_types);
+	      nodes ->
+		  State#state.active_nodes
 	  end,
     
     {reply, Reply, State};
@@ -96,13 +101,25 @@ handle_cast({add_local_resource, {Type, Resource}}, State) ->
 handle_cast(trade_resources, State) ->
     ResourceTuples = State#state.local_resource_tuples,
     AllNodes = [node() | nodes()],
+    %% Check if nodes are missing
+    LostNodes=[Node||Node<-State#state.active_nodes,false==lists:member(Node,AllNodes)],
+    FoundTuples=dict:to_list(State#state.found_resource_tuples),
+    case LostNodes of
+	[]->
+	    NewState=State;
+	LostNodes-> %% remove all services realted to that node
+	    NewFoundTuples=remove_lost_nodes(LostNodes,FoundTuples),
+	    NewState=State#state{found_resource_tuples=dict:from_list(NewFoundTuples)}    
+    end,
+    
+    %%
     lists:foreach(
         fun(Node) ->
             gen_server:cast({?SERVER, Node},
                             {trade_resources, {node(), ResourceTuples}})
         end,
         AllNodes),
-    {noreply, State};
+    {noreply, NewState};
 handle_cast({trade_resources, {ReplyTo, Remotes}},
            #state{local_resource_tuples = Locals,
 		  target_resource_types = TargetTypes,
@@ -155,3 +172,13 @@ resources_for_types(Types, ResourceTuples) ->
             end
         end,
     lists:foldl(Fun, [], Types).
+
+%%---
+remove_lost_nodes([],UpdatedFoundTuples)->
+    UpdatedFoundTuples;
+remove_lost_nodes([LostNode|T],FoundTuples)->
+ %   UpdatedFoundTuples =[{Service,lists:delete(LostNode,ResourceList)}||{Service,ResourceList}<-FoundTuples],
+    X =[{Service,lists:delete(LostNode,ResourceList)}||{Service,ResourceList}<-FoundTuples],
+    UpdatedFoundTuples=[{Service,ResourceList}||{Service,ResourceList}<-X,ResourceList/=[]],
+  %  NewAcc=lists:append(UpdatedFoundTuples,Acc),
+    remove_lost_nodes(T,UpdatedFoundTuples).
