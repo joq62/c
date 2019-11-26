@@ -41,11 +41,9 @@ init_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],
     _Pods=[pod:create(node(),PodId)||PodId<-?POD_ID],
     
-    {ok,_Pid}=master_service:start(),
-    ["machine_w2@asus","machine_w3@asus","machine_w1@asus"]=iaas_service:active_machines(),
+  %  {ok,_Pid}=master_service:start(),
+   % ["machine_w2@asus","machine_w3@asus","machine_w1@asus"]=iaas_service:active_machines(),
     ok.
-
-%----- node config --------------------------------------------------------
 
 %----- master test 0  tests------------------------------------------------
 
@@ -66,107 +64,52 @@ etcd_app_spec_test()->
 	 {type,application},
 	 {description,"Specification file for application template"},
 	 {vsn,"1.0.0"},
-	 {service_def,_}]}=etcd_lib:read_catalogue(new_test_app),
+	 {machine,"machine_w1@asus"},
+	 {services,_}]}=etcd_lib:read_catalogue(new_test_app),
     {ok,[{specification,new_test_2_app},
 	 {type,application},
 	 {description,"Specification file for application template"},
 	 {vsn,"1.0.0"},
-	 {service_def,_}]}=etcd_lib:read_catalogue(new_test_2_app),
+	 {machine,any},
+	 {services,_}]}=etcd_lib:read_catalogue(new_test_2_app),
     {error,[no_app_specs,etcd_lib,_]}=etcd_lib:read_catalogue(new_test_glurk_app),
     ok.
 
 etcd_machine_spec_test()->
-    {ok,Machines}=etcd_lib:read_machines(),
-%    glurk=Machines,
-    true=lists:keymember({machine_id,"machine_m1@asus"},1,Machines),
-    true=lists:keymember({machine_id,"machine_w1@asus"},1,Machines),
-    false=lists:keymember({machine_id,"machine_glurk@asus"},1,Machines),
-%------------------------------------------------------------------------
-    
-    {ok,Machine}=etcd_lib:read_machines("machine_m1@asus"),
-    {{machine_id,"machine_m1@asus"},
-     {ip_addr,"localhost",10000},
-     {zone,"sthlm.flat.room1"},
-     {capabilities,[disk,tellstick]}}=Machine,
-    {ok,Machine2}=etcd_lib:read_machines("machine_w1@asus"),
-    {{machine_id,"machine_w1@asus"},
-     {ip_addr,"localhost",20000},
-     {zone,"varmdoe.main.room2"},
-     {capabilities,[]}}=Machine2,
-    {error,[no_machine_info,etcd_lib,_98]}=etcd_lib:read_machines("machine_glurk@asus"),
+    {ok,Machines}=etcd_lib:all_machines(),
+    ["machine_w2@asus","machine_m1@asus",
+     "machine_w3@asus", 
+     "machine_w1@asus","machine_m2@asus"]=Machines,
+    true=etcd_lib:member("machine_m1@asus"),
+    false=etcd_lib:member("machine_glurk@asus"),
     ok.
     
 %----- master test 1  tests----------------------------------------------------
-spec_1_test()->
-    {ok,new_test_app,
-     [{specification,new_test_app},
-      {type,application},
-      {description,"Specification file for application template"},
-      {vsn,"1.0.0"},
-      {service_def,[[{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}],
-		    [{service,"t2_service"},{git,url_t2_service},{machine,[]}],
-		    [{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}]]}]}=spec:read(?NEW_TEST_APP_SPEC),
-  
-    ok.
- 
-spec_2_test()->   
-    new_test_app=spec:read(specification,?NEW_TEST_APP_SPEC),
-    application=spec:read(type,?NEW_TEST_APP_SPEC),
-    "Specification file for application template"=spec:read(description,?NEW_TEST_APP_SPEC),
-    "1.0.0"=spec:read(vsn,?NEW_TEST_APP_SPEC),
-    ServiceDef=spec:read(service_def,?NEW_TEST_APP_SPEC),  
-    [[{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}],
-     [{service,"t2_service"},{git,url_t2_service},{machine,[]}],
-     [{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}]]=ServiceDef,  	
-    ok.
-
-spec_3_test()->   
-    new_test_2_app=spec:read(specification,?NEW_TEST_2_APP_SPEC),
-    application=spec:read(type,?NEW_TEST_APP_SPEC),
-    "Specification file for application template"=spec:read(description,?NEW_TEST_2_APP_SPEC),
-    "1.0.0"=spec:read(vsn,?NEW_TEST_2_APP_SPEC),
-    ServiceDef=spec:read(service_def,?NEW_TEST_2_APP_SPEC),  
-    [[{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}],
-     [{service,"t2_service"},{git,url_t2_service},{machine,[]}],
-     [{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w2@asus"}],
-     [{service,"t3_service"},{dir,path_t2_service},{machine,"machine_m1@asus"}]]=ServiceDef,  	
-    ok.
+etcd_store_deployment_test()->
+    ok=etcd_lib:store_deployment(appid_1,pod_1,cont_1,service1,machine1),
+  %  glurk=etcd_lib:read_all(),
+    {ok,[[appid_1,pod_1,cont_1,service1,machine1]]}=etcd_lib:deployment_info(all),
+    ok=etcd_lib:store_deployment(appid_2,pod_2,cont_2,service2,machine2),
+%    {ok,[[appid_1,pod_1,cont_1,service1,machine1],
+%	 [appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(all),
     
+    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(appid,appid_2),
+    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(pod,pod_2),
+    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(container,cont_2),
+    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(service,service2),
+    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(machine,machine2),
 
-%----- iaas tests---------------------------------------------------------
-iaas_t1_test()->
-    timer:sleep(2000),
-    {ok,["machine_m1@asus",
-	 "machine_m2@asus",
-	 "machine_w2@asus",
-	 "machine_w3@asus",
-	 "machine_w1@asus"]}=iaas_service:get_all_nodes(),
-    
+    {error,[no_machine_info,etcd_lib,_100]}=etcd_lib:deployment_info(machine,glurk),
+    {error,[wrong_type,glurk,etcd_lib,_93]}=etcd_lib:deployment_info(glurk,machine2),
+
+
     ok.
-
-iaas_t2_test()->
-    {error,[eexits,glurk@asus,iaas_service,_]}=iaas_service:machine_capabilities(glurk@asus),
-    {ok,[{"machine_w2@asus",[]}]}=iaas_service:machine_capabilities(machine_w2@asus),
-    {ok,[{"machine_w3@asus",L1}]}=iaas_service:machine_capabilities(machine_w3@asus),
-    {true,true}={lists:member(disk,L1),lists:member(drone,L1)},
-    {ok,[{"machine_m1@asus",L2}]}=iaas_service:machine_capabilities(machine_m1@asus),
-    {true,true}={lists:member(disk,L2),lists:member(tellstick,L2)},
-    ok.
-
-iaas_machines_2_test()->
-    ["machine_w2@asus","machine_w3@asus","machine_w1@asus"]=iaas_service:active_machines(),
-    ["machine_m1@asus","machine_m2@asus"]=iaas_service:inactive_machines(),
-    ok.
-
-
-
-    
 
 
 stop_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],
   %  iaas_service:stop(),
-    master_service:stop(),
+  %  master_service:stop(),
     do_kill().
 do_kill()->
     init:stop().

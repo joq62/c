@@ -14,18 +14,13 @@
 %% {ok,[{specification,new_test_app},{type,application},
 %%	 {description,"Specification file for application template"},
 %%	 {vsn,"1.0.0"},
-%%        {service_def,[[{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}],
-%%	               [{service,"t2_service"},{git,url_t2_service},{machine,[]}],
-%%	               [{service,"t1_service"},{dir,path_t1_service},{machine,"machine_w1@asus"}]]}.
+%%        {services,[{{service,"t1_service"},{dir,path_t1_service}},
+%%	             {{service,"t2_service"},{url,url_t2_service}}]}.
 %%
 %%---
 % Definition of machines
-%% {machines,
-%	[{{machine_id,"machine_m1@asus"},{ip_addr,"localhost",10000},{zone,"sthlm.flat.room1"},{capabilities,[disk,tellstick]}},
-%	 {{machine_id,"machine_m2@asus"},{ip_addr,"localhost",10010},{zone,"varmdoe.main.room1"},{capabilities,[]}},
-%	 {{machine_id,"machine_w1@asus"},{ip_addr,"localhost",20000},{zone,"varmdoe.main.room2"},{capabilities,[]}},
-%	 {{machine_id,"machine_w2@asus"},{ip_addr,"localhost",20010},{zone,"varmdoe.guesthouse.room1"},{capabilities,[]}},	
-%	 {{machine_id,"machine_w3@asus"},{ip_addr,"localhost",20030},{zone,"sthlm.flat.balcony"},{capabilities,[disk,drone]}}]}.
+%% {machines,["machine_m1@asus","machine_m2@asus","machine_w1@asus","machine_w2@asus","machine_w3@asus"]}.
+%
 % List of path or urls to application specifications
 %{app_specs,[{dir,"/home/pi/erlang/b/catalogue"}]}.
 %
@@ -36,14 +31,10 @@
 %         5) Add or remove services
 %         6) Detect if a service has dissappeare or come back 
 %
-% Deployment info
-%      [{service,Service},{pod,Pod},{machine,Machine},{timestamp,Time},{application,Application},{status,started|stopped}]
+% Deployment 
+%      [{app,AppId},{pod,Pod},{container,Cont},{service,Service},{machine,Machine}]
 %      PodId="pod_serviceid_systemtime@host"
 %      
-%  Service Discovery: Pod alling service -> Which Application -> allocated service service + pod
-%  sd:get_service(node(),service)-> [Pod1,Podn]
-%  sd:update(node(),service)-> Update timestamp 
-%  sd:check_services()->   
 %
 %% --------------------------------------------------------------------
 %% Include files
@@ -57,11 +48,9 @@
 -export([init/1,
 	 read_all/0,
 	 read_catalogue/0,read_catalogue/1,
-	 read_machines/0,read_machines/1,
-	 ip_addr/1,ip_addr/2,
-	 zone/0,zone/1,capability/1,
-	 get_all_nodes/0,
-	 machine_capabilities/1
+	 all_machines/0,member/1,
+	 store_deployment/5,
+	 deployment_info/1,deployment_info/2
 	]).
 
 
@@ -73,7 +62,47 @@
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-
+store_deployment(AppId,Pod,Container,Service,Machine)->
+    NewDeployment=[{{deployment,AppId,Pod,Container,Service,Machine},AppId,Pod,Container,Service,Machine}],
+    ets:insert(?ETS_NAME,NewDeployment),
+    ok.
+delete_deployment(AppId)->
+    ok.
+deployment_info(all)->
+    Result=case ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_'},'$1','$2','$3','$4','$5'}) of
+	       []->
+		   {error,[no_machine_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+deployment_info(Type,Key)->
+    Infos = case Type of	    
+		appid->
+		    ets:match(?ETS_NAME,{{deployment,Key,'_','_','_','_'},'$1','$2','$3','$4','$5'});
+		pod->
+		    ets:match(?ETS_NAME,{{deployment,'_',Key,'_','_','_'},'$1','$2','$3','$4','$5'});
+		container->
+		    ets:match(?ETS_NAME,{{deployment,'_','_',Key,'_','_'},'$1','$2','$3','$4','$5'});
+		service->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_',Key,'_'},'$1','$2','$3','$4','$5'});
+		machine->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_',Key},'$1','$2','$3','$4','$5'});
+		Err->
+		    {error,[wrong_type,Type,?MODULE,?LINE]}
+	    end,
+		    
+    Result=case Infos of
+	       {error,Err1}->
+		   {error,Err1};
+	       []->
+		   {error,[no_machine_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
@@ -98,7 +127,7 @@ read_all()->
     ets:match(?ETS_NAME,'$1').
 
 machines_to_ets(MachineList)->
-    A=[{machine_info,MachineDef}||MachineDef<-MachineList],
+    A=[{{machine,Machine},Machine}||Machine<-MachineList],
     ets:insert(?ETS_NAME,A),
     ok.
 app_specs_to_ets(dir,Path)->
@@ -113,8 +142,8 @@ app_specs_to_ets(Undef1,Undef2) ->
     {error,[unmatched_signal,Undef1,Undef2,?MODULE,?LINE]}.
 
 %%-------------------------------------------------------------------------------------
-read_machines()->
-    Result=case ets:match(?ETS_NAME,{machine_info,'$1'}) of
+all_machines()->
+    Result=case ets:match(?ETS_NAME,{{machine,'$1'},'_'}) of
 	       []->
 		   {error,[no_machine_info,?MODULE,?LINE]};
 	       Infos->
@@ -122,20 +151,12 @@ read_machines()->
 		   {ok,A}
 	   end,
     Result.
-read_machines(Machine)->
-    
-    Result=case ets:match(?ETS_NAME,{machine_info,'$1'}) of
+member(Machine)->
+    Result=case ets:match(?ETS_NAME,{{machine,Machine},'$1'}) of
 	       []->
-		   {error,[no_machine_specs,?MODULE,?LINE]};
-	       Infos->
-		   A=[Info||[Info]<-Infos],
-		   %glurk=A,
-		   case lists:keyfind({machine_id,Machine},1,A) of
-		       false->
-			   {error,[no_machine_info,?MODULE,?LINE]};
-		       MachineInfo->
-			   {ok,MachineInfo}
-		   end
+		   false;
+	       [[Machine]]->
+		   true
 	   end,
     Result.
 
@@ -161,75 +182,6 @@ read_catalogue(Application)->
 
 
     
-get_all_nodes()->
-     Result=case ets:match(?ETS_NAME,{{status,'_','_'},'$2','$1'}) of
-	       []->
-		   {error,[no_nodes,?MODULE,?LINE]};
-	       Nodes->
-		   A=[Node||[Node,_Status]<-Nodes],
-		   {ok,A}
-	   end,
-    Result.
-
-zone()->
-    Result=case ets:match(?ETS_NAME,{{zone,'$1'},'$2','_'}) of
-	       []->
-		   {error,[no_zones,?MODULE,?LINE]};
-	       Zones->
-		   A=[{Node,Zone}||[Node,Zone]<-Zones],
-		   {ok,A}
-	   end,
-    Result.
-	       
-zone(NodeStr)->
-    Result=case ets:match(?ETS_NAME,{{zone,NodeStr},'$2','_'}) of
-	       []->
-		   {error,[no_zones,?MODULE,?LINE]};
-	       [[Zone]]->
-		   {ok,Zone}
-	   end,
-    Result.
-
-   
-capability(Capability)->
-    Result=case  ets:match(?ETS_NAME,{{cap,Capability,'$1'},'$2','_'}) of
-	       []->
-		   {ok,[]};
-	       EtsResult->
-		   A=[{Node,Capability1}||[Node,Capability1]<-EtsResult],
-		   {ok,A}
-	   end,
-    Result.
-
-machine_capabilities(MachineId)->
-    Result=case  ets:match(?ETS_NAME,{{cap,'_',MachineId},'$1','$2'})of
-	       []->
-		   {ok,[{MachineId,[]}]};
-	       EtsResult->
-		   A=[Caps||[Caps,_MId]<-EtsResult],
-		   {ok,[{MachineId,A}]}
-	   end,
-    Result.
-
-ip_addr(BoardId)->
-    Result=case ets:match(?ETS_NAME,{{ip_addr,BoardId},'_',{'$3','$4'}}) of
-	       []->
-		   {error,[eexist,BoardId,?MODULE,?LINE]};
-	       EtsResult->
-		   A=[{IpAddr,Port}||[IpAddr,Port]<-EtsResult],
-		   {ok,A}
-	   end,
-    Result.
-ip_addr(IpAddr,Port)->
-    Result=case ets:match(?ETS_NAME,{{ip_addr,'_'},'$1',{IpAddr,Port}}) of
-	       []->
-		   {error,[eexists,IpAddr,Port,?MODULE,?LINE]};
-	       EtsResult->
-		   A=[BoardId||[BoardId]<-EtsResult],
-		   {ok,A}
-	   end,
-    Result.
-
 
 %% --------------------------------------------------------------------
 %% Function: 
