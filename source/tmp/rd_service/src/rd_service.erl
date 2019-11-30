@@ -113,13 +113,12 @@ handle_cast(trade_resources, State) ->
     end,
     
     %%
-    [gen_server:cast({?SERVER, Node},{trade_resources,{node(), ResourceTuples}})||Node<-AllNodes],
-%    lists:foreach(
- %       fun(Node) ->
-  %          gen_server:cast({?SERVER, Node},
-   %                         {trade_resources, {node(), ResourceTuples}})
-    %    end,
-     %   AllNodes),
+    lists:foreach(
+        fun(Node) ->
+            gen_server:cast({?SERVER, Node},
+                            {trade_resources, {node(), ResourceTuples}})
+        end,
+        AllNodes),
     {noreply, NewState};
 handle_cast({trade_resources, {ReplyTo, Remotes}},
            #state{local_resource_tuples = Locals,

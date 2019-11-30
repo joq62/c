@@ -54,22 +54,6 @@ ping_test()->
     [rpc:call(Node,net_adm,ping,[TestNode])||Node<-Nodes],
     ok.
 
-%---------------   ETS test -----------------------------------------
-
-ets_node_test()->
-    ets_rd:init(),
-    A=ets_rd:get_active_nodes(),
-    true=lists:member(board_w2@asus,A),
-    true=ets_rd:member_node(board_w2@asus),
-    true=ets_rd:delete_active_node(board_w2@asus),
-    false=ets_rd:member_node(board_w2@asus),
-    ok.
-
-ets_local_test()->
-    ets_rd:
-		    
-
-%----------------------------------------------------------
 debug_nodes_test()->
     [test_rd_service@asus,board_w1@asus,board_w2@asus,board_w3@asus]=rd_service:debug(nodes),
     ok.
@@ -113,15 +97,15 @@ get_resources_1_test()->
     rd_service:trade_resources(),
     timer:sleep(500),
     R=[{Service,rd_service:fetch_resources(Service)}||Service<-Target],
-    [{service_1_w2,{ok,_}},
-     {service_1_w3,{ok,_}},
-     {service_1_w1,{ok,_}},
-     {service_1_w2,{ok,_}},
-     {service_2_w2,{ok,_}},
-     {service_3_w1,{ok,_}},
-     {service_1_w3,{ok,_}},
-     {service_2_w3,{ok,_}},
-     {service_3_w3,{ok,_}}]=R,
+    [{service_1_w2,{ok,[board_w2@asus]}},
+     {service_1_w3,{ok,[board_w3@asus]}},
+     {service_1_w1,{ok,[board_w1@asus]}},
+     {service_1_w2,{ok,[board_w2@asus]}},
+     {service_2_w2,{ok,[board_w2@asus]}},
+     {service_3_w1,{ok,[board_w2@asus,board_w1@asus]}},
+     {service_1_w3,{ok,[board_w3@asus]}},
+     {service_2_w3,{ok,[board_w3@asus]}},
+     {service_3_w3,{ok,[board_w3@asus]}}]=R,
     ok.
 
 get_resources_kill_w2_test()->

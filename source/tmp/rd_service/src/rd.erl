@@ -7,9 +7,6 @@
          trade_resources/0
 	]).
 
-
-
-
 add_target_resource_type(Type) ->
     rd_service:add_target_resource_type(Type).
 
