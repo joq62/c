@@ -16,10 +16,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {target_resource_types,
-                local_resource_tuples,
-                found_resource_tuples,
-		active_nodes}).
+-record(state, {}).
 
 %% API
 
@@ -36,7 +33,8 @@ add_local_resource(Type, Resource) ->
     gen_server:cast(?SERVER, {add_local_resource, {Type, Resource}}).
 
 fetch_resources(Type) ->
-    gen_server:call(?SERVER, {fetch_resources, Type}).
+    ets_rd:get_resources(Type).
+  %  gen_server:call(?SERVER, {fetch_resources, Type}).
 
 trade_resources() ->
     gen_server:cast(?SERVER, trade_resources).
@@ -49,22 +47,19 @@ debug(Type,Service) ->
 %% Callbacks
 
 init([]) ->
-    ActiveNodes=[node()|nodes()],
-    {ok, #state{active_nodes=ActiveNodes,
-		target_resource_types = [],
-                local_resource_tuples = dict:new(),
-                found_resource_tuples = dict:new()}}.
+    ets_rd:init(),
+    {ok, #state{}}.
 
-handle_call({debug,Type,Service}, _From, State) ->
+handle_call({debug,Type,_Service}, _From, State) ->
     Reply=case Type of
 	      state->
 		  State;
 	      local->
-		  dict:fetch(Service,State#state.local_resource_tuples);
+		  ets_rd:get_locals();
 	      found->
-		  dict:find(Service,State#state.found_resource_tuples);
+		  ets_rd:get_founds();
 	      target->
-		  dict:find(Service,State#state.target_resource_types)	      
+		  ets_rd:get_targets()    
 	  end,
     {reply, Reply, State};
 
@@ -73,68 +68,67 @@ handle_call({debug,Type}, _From, State) ->
 	      state->
 		  State;
 	      local->
-		  State#state.local_resource_tuples;
+		  ets_rd:get_locals();
 	      found->
-		   dict:to_list(State#state.found_resource_tuples);
+		   ets_rd:get_founds();
 	      target->
-		  dict:to_list(State#state.target_resource_types);
+		   ets_rd:get_targets();
 	      nodes ->
-		  State#state.active_nodes
+		  ets_rd:get_active_nodes()
 	  end,
     
     {reply, Reply, State};
 
 handle_call({fetch_resources, Type}, _From, State) ->
-    {reply, dict:find(Type, State#state.found_resource_tuples), State};
+    Reply=ets_rd:get_resources(Type),
+    {reply, Reply, State};
 
 handle_call({stop}, _From, State) ->
     {stop, normal, shutdown_ok, State}.
 
 handle_cast({add_target_resource_type, Type}, State) ->
-    TargetTypes = State#state.target_resource_types,
-    NewTargetTypes = [Type | lists:delete(Type, TargetTypes)],
-    {noreply, State#state{target_resource_types = NewTargetTypes}};
+    ets_rd:store_target(Type),
+    {noreply, State};
 handle_cast({add_local_resource, {Type, Resource}}, State) ->
-    ResourceTuples = State#state.local_resource_tuples,
-    NewResourceTuples = add_resource(Type, Resource, ResourceTuples),
-    {noreply, State#state{local_resource_tuples = NewResourceTuples}};
+    ets_rd:store_local({Type, Resource}),
+
+%   ResourceTuples = State#state.local_resource_tuples,
+  %  NewResourceTuples = add_resource(Type, Resource, ResourceTuples),
+    {noreply, State};
 handle_cast(trade_resources, State) ->
-    ResourceTuples = State#state.local_resource_tuples,
+    ResourceTuples =ets_rd:get_locals(),
     AllNodes = [node() | nodes()],
-    %% Check if nodes are missing
-    LostNodes=[Node||Node<-State#state.active_nodes,false==lists:member(Node,AllNodes)],
-    FoundTuples=dict:to_list(State#state.found_resource_tuples),
+    [gen_server:cast({?SERVER, Node},{trade_resources,{node(), ResourceTuples}})||Node<-AllNodes],
+   %% Check if nodes are missing
+    ActiveNodes=ets_rd:get_active_nodes(),
+    LostNodes=[Node||Node<-ActiveNodes,false==lists:member(Node,AllNodes)],
     case LostNodes of
 	[]->
-	    NewState=State;
+	    no_lost_nodes;
 	LostNodes-> %% remove all services realted to that node
-	    NewFoundTuples=remove_lost_nodes(LostNodes,FoundTuples),
-	    NewState=State#state{found_resource_tuples=dict:from_list(NewFoundTuples)}    
+	        %FoundTuples=ets_rd:get_founds(),
+	   % [delete_found(Lost)
+	   % Remove Node from active_nodes
+	    [ets_rd:delete_active_node(Node)||Node<-LostNodes],
+	    % Remove from found
+	    remove_found(LostNodes)   
     end,
     
     %%
-    [gen_server:cast({?SERVER, Node},{trade_resources,{node(), ResourceTuples}})||Node<-AllNodes],
-%    lists:foreach(
- %       fun(Node) ->
-  %          gen_server:cast({?SERVER, Node},
-   %                         {trade_resources, {node(), ResourceTuples}})
-    %    end,
-     %   AllNodes),
-    {noreply, NewState};
-handle_cast({trade_resources, {ReplyTo, Remotes}},
-           #state{local_resource_tuples = Locals,
-		  target_resource_types = TargetTypes,
-		  found_resource_tuples = OldFound} = State) ->
-    FilteredRemotes = resources_for_types(TargetTypes, Remotes),
-    NewFound = add_resources(FilteredRemotes, OldFound),
+%    [gen_server:cast({?SERVER, Node},{trade_resources,{node(), ResourceTuples}})||Node<-AllNodes],
+    {noreply, State};
+handle_cast({trade_resources, {ReplyTo, Remotes}},State) ->
+    store_needed_remotes(Remotes),
+
     case ReplyTo of
         noreply ->
             ok;
         _ ->
+	    Locals=ets_rd:get_locals(),
             gen_server:cast({?SERVER, ReplyTo},
                             {trade_resources, {noreply, Locals}})
     end,
-    {noreply, State#state{found_resource_tuples = NewFound}}.
+    {noreply, State}.
 
 handle_info(ok = _Info, State) ->
     {noreply, State}.
@@ -147,39 +141,27 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %% Utilities
+store_needed_remotes([])->
+    ok;
+store_needed_remotes(Remotes)->
+    store_needed_remotes(Remotes,ets_rd:get_targets()).
+store_needed_remotes([],_WantedRemotes)->
+    ok;
+store_needed_remotes([{Service,Resource}|T],WantedRemotes)->
+    case lists:member(Service,WantedRemotes) of
+	true->
+	    ets_rd:store_found({Service,Resource});
+	false ->
+	    ok
+    end,
+    store_needed_remotes(T,WantedRemotes).
 
-add_resources([{Type, Identifier}|T], Dict) ->
-    add_resources(T, add_resource(Type, Identifier, Dict));
-add_resources([], Dict) ->
-    Dict.
-
-add_resource(Type, Resource, Dict) ->
-    case dict:find(Type, Dict) of
-        {ok, ResourceList} ->
-            NewList = [Resource | lists:delete(Resource, ResourceList)],
-            dict:store(Type, NewList, Dict);
-        error ->
-            dict:store(Type, [Resource], Dict)
-    end.
-
-resources_for_types(Types, ResourceTuples) ->
-    Fun =
-        fun(Type, Acc) ->
-            case dict:find(Type, ResourceTuples) of
-                {ok, List} ->
-                    [{Type, Resource} || Resource <- List] ++ Acc;
-                error ->
-                    Acc
-            end
-        end,
-    lists:foldl(Fun, [], Types).
-
-%%---
-remove_lost_nodes([],UpdatedFoundTuples)->
-    UpdatedFoundTuples;
-remove_lost_nodes([LostNode|T],FoundTuples)->
- %   UpdatedFoundTuples =[{Service,lists:delete(LostNode,ResourceList)}||{Service,ResourceList}<-FoundTuples],
-    X =[{Service,lists:delete(LostNode,ResourceList)}||{Service,ResourceList}<-FoundTuples],
-    UpdatedFoundTuples=[{Service,ResourceList}||{Service,ResourceList}<-X,ResourceList/=[]],
-  %  NewAcc=lists:append(UpdatedFoundTuples,Acc),
-    remove_lost_nodes(T,UpdatedFoundTuples).
+remove_found([])->
+    ok;
+remove_found([LostNode|T])->
+    Founds=ets_rd:get_found(LostNode),
+ %  io:format("~p~n",[{Founds,?MODULE,?LINE}]),
+%    [ io:format("~p~n",[{Service,Resource,?MODULE,?LINE}])||{Service,Resource}<-Founds],
+    [ets_rd:delete_found({Service,Resource})||{Service,Resource}<-Founds],
+    remove_found(T).   
+				 

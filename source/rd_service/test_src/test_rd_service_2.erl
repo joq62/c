@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(test_rd_service).
+-module(test_rd_service_2).
  
 %% --------------------------------------------------------------------
 %% Include files
@@ -15,7 +15,7 @@
 -define(POD_ID,["board_w1","board_w2","board_w3"]).
 %% External exports
 
--export([]).
+-export([start/0]).
 
 
 %% ====================================================================
@@ -26,6 +26,18 @@
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+start()->
+    init_test(),
+    load_resources_w1_test(),
+    load_resources_w2_test(),
+    load_resources_w3_test(),
+    get_resources_1_test(),
+    get_resources_kill_w1_1_test(),
+    get_resources_kill_w2_test(),
+    stop_test(),
+    ok.
+    
+
 init_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],
     A=[pod:create(node(),PodId)||PodId<-?POD_ID],
@@ -140,6 +152,7 @@ get_resources_1_test()->
     rd_service:trade_resources(),
     timer:sleep(500),
     R=[{Service,rd_service:fetch_resources(Service)}||Service<-Target],
+    io:format(" ~p~n",[{R,?MODULE,?LINE}]),
     [{service_1_w2,_},
      {service_1_w3,_},
      {service_1_w1,_},
@@ -178,15 +191,8 @@ get_resources_kill_w2_test()->
     rd_service:trade_resources(),
     timer:sleep(500),
     R=[{Service,rd_service:fetch_resources(Service)}||Service<-Target],
-    [{service_1_w2,error},
-     {service_1_w3,{ok,[board_w3@asus]}},
-     {service_1_w1,{ok,[board_w1@asus]}},
-     {service_1_w2,error},
-     {service_2_w2,error},
-     {service_3_w1,{ok,[board_w1@asus]}},
-     {service_1_w3,{ok,[board_w3@asus]}},
-     {service_2_w3,{ok,[board_w3@asus]}},
-     {service_3_w3,{ok,[board_w3@asus]}}]=R,
+    io:format("killed 'board_w2@asus' ~p~n",[{R,?MODULE,?LINE}]),
+ 
     ok.
 get_resources_kill_w1_1_test()->
   %  glurk=rd_service:debug(found),
@@ -199,15 +205,8 @@ get_resources_kill_w1_1_test()->
     rd_service:trade_resources(),
     timer:sleep(500),
     R=[{Service,rd_service:fetch_resources(Service)}||Service<-Target],
-    [{service_1_w2,error},
-     {service_1_w3,{ok,[board_w3@asus]}},
-     {service_1_w1,{ok,[board_w1@asus]}},
-     {service_1_w2,error},
-     {service_2_w2,error},
-     {service_3_w1,{ok,[board_w1@asus]}},
-     {service_1_w3,{ok,[board_w3@asus]}},
-     {service_2_w3,{ok,[board_w3@asus]}},
-     {service_3_w3,{ok,[board_w3@asus]}}]=R,
+    io:format("killed 'board_w1@asus' ~p~n",[{R,?MODULE,?LINE}]),
+
     ok.	       
 
 stop_test()->
