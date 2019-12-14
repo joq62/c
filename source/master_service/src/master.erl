@@ -31,6 +31,9 @@
 
 
 %% intermodule 
+-export([wanted_apps/1,wanted_apps_list/1
+	 ]).
+
 -export([start_app/2,
 	 get_start_list/2,
 	 %orchistrate/2,
@@ -44,6 +47,26 @@
 %% ====================================================================
 %% External functions
 %% ===================================================================
+wanted_apps({Type,Location})->
+    List=wanted_apps_list({Type,Location}),    
+    [proplists:get_value(specification,Info)||Info<-List].
+
+wanted_apps_list({Type,Location})->
+    WantedApps=case Type of 
+		   dir->
+		       case file:list_dir(Location) of
+			   {ok,Files}->
+			       L=[file:consult(filename:join(Location,File))||File<-Files,
+							      ".spec"==filename:extension(File)],
+			       [Info||{ok,Info}<-L];
+			   Err->
+			       {Err,Type,Location}
+		       end;
+		   url ->
+		       {glurk,?MODULE,?LINE}
+	       end,
+    WantedApps.
+    
 
 %% --------------------------------------------------------------------
 %% Function:create_worker_node(Service,MachineNode)

@@ -45,12 +45,17 @@
 %% External exports
 
 
+
 -export([init/1,
 	 read_all/0,
-	 read_catalogue/0,read_catalogue/1,
-	 all_machines/0,member/1,
-	 store_deployment/5,
-	 deployment_info/1,deployment_info/2
+	 all_machines/0,member/1
+	]).
+-export([create_deployment/7,delete_deployment/2,update_deployment/7,
+	 read_deployment/1,read_deployment/2,
+	 create_wanted/4,update_wanted/4,
+	 delete_wanted/2,read_wanted/1,read_wanted/2,
+	 create_catalog/4,update_catalog/4,
+	 delete_catalog/2,read_catalog/1,read_catalog/2
 	]).
 
 
@@ -62,14 +67,34 @@
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-store_deployment(AppId,Pod,Container,Service,Machine)->
-    NewDeployment=[{{deployment,AppId,Pod,Container,Service,Machine},AppId,Pod,Container,Service,Machine}],
-    ets:insert(?ETS_NAME,NewDeployment),
+create_catalog(AppId,Vsn,Machine,Services)->
+    NewCatalog=[{{catalog,AppId,Vsn,Machine,Services},AppId,Vsn,Machine,Services}],
+    ets:insert(?ETS_NAME,NewCatalog),
     ok.
-delete_deployment(AppId)->
-    ok.
-deployment_info(all)->
-    Result=case ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_'},'$1','$2','$3','$4','$5'}) of
+update_catalog(AppId,Vsn,Machine,Services)->
+    Result=case ets:match(?ETS_NAME,{{catalog,AppId,Vsn,'_','_'},'$1','$2','$3','$4'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldService]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{catalog,OldAppId,OldVsn,OldMachine,OldService},
+						OldAppId,OldVsn,OldMachine,OldService}),
+		   ets:insert(?ETS_NAME,{{catalog,AppId,Vsn,Machine,Services},AppId,Vsn,Machine,Services})	   
+	   end,
+    Result.
+
+delete_catalog(AppId,Vsn)->
+    Result=case ets:match(?ETS_NAME,{{catalog,AppId,Vsn,'_','_'},'$1','$2','$3','$4'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldService]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{catalog,OldAppId,OldVsn,OldMachine,OldService},
+						OldAppId,OldVsn,OldMachine,OldService})  
+	   end,
+    Result.
+read_catalog(all)->
+    Result=case ets:match(?ETS_NAME,{{catalog,'_','_','_','_'},'$1','$2','$3','$4'}) of
 	       []->
 		   {error,[no_machine_info,?MODULE,?LINE]};
 	       Infos->
@@ -77,19 +102,156 @@ deployment_info(all)->
 		   {ok,A}
 	   end,
     Result.
-deployment_info(Type,Key)->
+read_catalog(Type,Key)->
     Infos = case Type of	    
 		appid->
-		    ets:match(?ETS_NAME,{{deployment,Key,'_','_','_','_'},'$1','$2','$3','$4','$5'});
-		pod->
-		    ets:match(?ETS_NAME,{{deployment,'_',Key,'_','_','_'},'$1','$2','$3','$4','$5'});
-		container->
-		    ets:match(?ETS_NAME,{{deployment,'_','_',Key,'_','_'},'$1','$2','$3','$4','$5'});
-		service->
-		    ets:match(?ETS_NAME,{{deployment,'_','_','_',Key,'_'},'$1','$2','$3','$4','$5'});
+		    ets:match(?ETS_NAME,{{catalog,Key,'_','_','_'},'$1','$2','$3','$4'});
+		vsn->
+		    ets:match(?ETS_NAME,{{catalog,'_',Key,'_','_'},'$1','$2','$3','$4'});
 		machine->
-		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_',Key},'$1','$2','$3','$4','$5'});
-		Err->
+		    ets:match(?ETS_NAME,{{catalog,'_','_',Key,'_'},'$1','$2','$3','$4'});
+		services->
+		    ets:match(?ETS_NAME,{{catalog,'_','_','_',Key},'$1','$2','$3','$4'});
+		_Err->
+		    {error,[wrong_type,Type,?MODULE,?LINE]}
+	    end,
+		    
+    Result=case Infos of
+	       {error,Err1}->
+		   {error,Err1};
+	       []->
+		   {error,[no_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+create_wanted(AppId,Vsn,Machine,Services)->
+    NewWanted={{wanted,AppId,Vsn,Machine,Services},AppId,Vsn,Machine,Services},
+    ets:insert(?ETS_NAME,NewWanted),
+    ok.
+update_wanted(AppId,Vsn,Machine,Services)->
+    Result=case ets:match(?ETS_NAME,{{wanted,AppId,Vsn,'_','_'},'$1','$2','$3','$4'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldService]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{wanted,OldAppId,OldVsn,OldMachine,OldService},
+						OldAppId,OldVsn,OldMachine,OldService}),
+		   ets:insert(?ETS_NAME,{{wanted,AppId,Vsn,Machine,Services},AppId,Vsn,Machine,Services})	   
+	   end,
+    Result.
+	    
+delete_wanted(AppId,Vsn)->
+    Result=case ets:match(?ETS_NAME,{{wanted,AppId,Vsn,'_','_'},'$1','$2','$3','$4'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldService]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{wanted,OldAppId,OldVsn,OldMachine,OldService},
+						OldAppId,OldVsn,OldMachine,OldService})		   
+	   end,
+    Result.
+
+read_wanted(all)->
+    Result=case ets:match(?ETS_NAME,{{wanted,'_','_','_','_'},'$1','$2','$3','$4'}) of
+	       []->
+		   {error,[no_machine_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+read_wanted(Type,Key)->
+    Infos = case Type of	    
+		appid->
+		    ets:match(?ETS_NAME,{{wanted,Key,'_','_','_'},'$1','$2','$3','$4'});
+		vsn->
+		    ets:match(?ETS_NAME,{{wanted,'_',Key,'_','_'},'$1','$2','$3','$4'});
+		machine->
+		    ets:match(?ETS_NAME,{{wanted,'_','_',Key,'_'},'$1','$2','$3','$4'});
+		services->
+		    ets:match(?ETS_NAME,{{wanted,'_','_','_',Key},'$1','$2','$3','$4'});
+		_Err->
+		    {error,[wrong_type,Type,?MODULE,?LINE]}
+	    end,
+		    
+    Result=case Infos of
+	       {error,Err1}->
+		   {error,Err1};
+	       []->
+		   {error,[eexists,Type,Key,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+create_deployment(AppId,Vsn,Machine,Pod,Container,Service,TimeStamp)->
+    NewDeployment={{deployment,AppId,Vsn,Machine,Pod,Container,Service,TimeStamp},AppId,Vsn,Machine,Pod,Container,Service,TimeStamp},
+    ets:insert(?ETS_NAME,NewDeployment),
+    ok.
+update_deployment(AppId,Vsn,Machine,Pod,Container,Service,TimeStamp)->
+    Result=case ets:match(?ETS_NAME,{{deployment,AppId,Vsn,Machine,Pod,Container,Service,'_'},'$1','$2','$3','$4','$5','$6','$7'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{deployment,OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp},
+						OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp}),
+		   ets:insert(?ETS_NAME,{{deployment,AppId,Vsn,Machine,Pod,Container,Service,TimeStamp},
+					 AppId,Vsn,Machine,Pod,Container,Service,TimeStamp})
+	   end,
+    Result.
+
+delete_deployment(AppId,Vsn)->
+    Result=case ets:match(?ETS_NAME,{{deployment,AppId,Vsn,'_','_','_','_','_'},'$1','$2','$3','$4','$5','$6','$7'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{deployment,OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp},
+						OldAppId,OldVsn,OldMachine,OldPod,OldContainer,OldService,OldTimeStamp})
+	   end,
+    Result.
+
+read_deployment(all)->
+    Result=case ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_','_','_'},'$1','$2','$3','$4','$5','$6','$7'}) of
+	       []->
+		   {error,[no_machine_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+read_deployment(Type,Key)->
+    Infos = case Type of	    
+		appid->
+		    ets:match(?ETS_NAME,{{deployment,Key,'_','_','_','_','_','_'},'$1','$2','$3','$4','$5','$6','$7'});
+		vsn->
+		    ets:match(?ETS_NAME,{{deployment,'_',Key,'_','_','_','_','_'},'$1','$2','$3','$4','$5','$6','$7'});
+		machine->
+		    ets:match(?ETS_NAME,{{deployment,'_','_',Key,'_','_','_','_'},'$1','$2','$3','$4','$5','$6','$7'});
+		pod->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_',Key,'_','_','_'},'$1','$2','$3','$4','$5','$6','$7'});
+		container->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_',Key,'_','_'},'$1','$2','$3','$4','$5','$6','$7'});
+		service->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_',Key,'_'},'$1','$2','$3','$4','$5','$6','$7'});
+		timestamp->
+		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_','_',Key},'$1','$2','$3','$4','$5','$6','$7'});
+		_Err->
 		    {error,[wrong_type,Type,?MODULE,?LINE]}
 	    end,
 		    
@@ -108,20 +270,9 @@ deployment_info(Type,Key)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-init(InitialConfiguration)->
-    Result = case file:consult(InitialConfiguration) of
-		 {ok,I}->
-		     ?ETS_NAME=ets:new(?ETS_NAME, [bag, named_table]),
-		     [{Type,Path}]=proplists:get_value(app_specs,I),
-		     ok=app_specs_to_ets(Type,Path),
-		     MachineList=proplists:get_value(machines,I),
-		     ok=machines_to_ets(MachineList),
-		     ok;
-		 {error,Err}->
-		     {error,[badrpc,Err,create_ets_listfile_consult,InitialConfiguration,?MODULE,?LINE]}
-	     end,
-    Result.
-
+init(_InitialConfiguration)->
+    ?ETS_NAME=ets:new(?ETS_NAME, [bag, named_table]),
+    ok.
 
 read_all()->
     ets:match(?ETS_NAME,'$1').
@@ -133,7 +284,7 @@ machines_to_ets(MachineList)->
 app_specs_to_ets(dir,Path)->
     {ok,FileNames}=file:list_dir(Path),
     A=[file:consult(filename:join(Path,FileName))||FileName<-FileNames,".spec"==filename:extension(FileName)],
-    AppSpecList=[{catalogue,proplists:get_value(specification,Info),Info}||{ok,Info}<-A],
+    AppSpecList=[{catalog,proplists:get_value(specification,Info),Info}||{ok,Info}<-A],
     ets:insert(?ETS_NAME,AppSpecList),
     ok;
 app_specs_to_ets(url,Url)->
@@ -159,29 +310,6 @@ member(Machine)->
 		   true
 	   end,
     Result.
-
-read_catalogue()->
-   % Result=case ets:match(?ETS_NAME,{catalogue,'$1','$2'}) of
-    Result=case ets:match(?ETS_NAME,{catalogue,'$1','$2'}) of
-	       []->
-		   {error,[no_app_specs,?MODULE,?LINE]};
-	       AppSpecs->
-		   A=[{App,Info}||[App,Info]<-AppSpecs],
-		   {ok,A}
-	   end,
-    Result.
-read_catalogue(Application)->
-    Result=case ets:match(?ETS_NAME,{catalogue,Application,'$1'}) of
-	       []->
-		   {error,[no_app_specs,?MODULE,?LINE]};
-	       AppsInfo->
-		   [[Info]]=AppsInfo,
-		   {ok,Info}
-	   end,
-    Result.
-
-
-    
 
 %% --------------------------------------------------------------------
 %% Function: 

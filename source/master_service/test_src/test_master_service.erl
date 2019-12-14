@@ -12,6 +12,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 %% --------------------------------------------------------------------
+-define(CATALOGE,"/home/pi/erlang/c/catalogue").
 -define(ETCD_INIT_FILE,"etcd_initial.config").
 
 
@@ -40,71 +41,134 @@
 init_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],
     _Pods=[pod:create(node(),PodId)||PodId<-?POD_ID],
-    
+    ok=etcd_lib:init(?ETCD_INIT_FILE),
   %  {ok,_Pid}=master_service:start(),
    % ["machine_w2@asus","machine_w3@asus","machine_w1@asus"]=iaas_service:active_machines(),
     ok.
 
-%----- master test 0  tests------------------------------------------------
+ 
 
-orch_1_test()->
-
-    ok.
-
-
-% ----- master_service test  tests---------------------------------------------
-etcd_app_spec_test()->
-    ok=etcd_lib:init(?ETCD_INIT_FILE),
-    {ok,AppSpecs}=etcd_lib:read_catalogue(),
-    true=lists:keymember(new_test_app,1,AppSpecs),
-    true=lists:keymember(new_test_2_app,1,AppSpecs),
-    false=lists:keymember(new_test_glurk_app,1,AppSpecs),
-%---------------------------------------------------------
-    {ok,[{specification,new_test_app},
-	 {type,application},
-	 {description,"Specification file for application template"},
-	 {vsn,"1.0.0"},
-	 {machine,"machine_w1@asus"},
-	 {services,_}]}=etcd_lib:read_catalogue(new_test_app),
-    {ok,[{specification,new_test_2_app},
-	 {type,application},
-	 {description,"Specification file for application template"},
-	 {vsn,"1.0.0"},
-	 {machine,any},
-	 {services,_}]}=etcd_lib:read_catalogue(new_test_2_app),
-    {error,[no_app_specs,etcd_lib,_]}=etcd_lib:read_catalogue(new_test_glurk_app),
-    ok.
-
-etcd_machine_spec_test()->
-    {ok,Machines}=etcd_lib:all_machines(),
-    ["machine_w2@asus","machine_m1@asus",
-     "machine_w3@asus", 
-     "machine_w1@asus","machine_m2@asus"]=Machines,
-    true=etcd_lib:member("machine_m1@asus"),
-    false=etcd_lib:member("machine_glurk@asus"),
-    ok.
+%%--------------- etcd-catalog
+store_catalog_apps_test()->
+    {ok,I}=file:consult(?ETCD_INIT_FILE),
+    [{_Type,Path}]=proplists:get_value(app_specs,I),
+    {ok,FileNames}=file:list_dir(Path),
+    A=[file:consult(filename:join(Path,FileName))||FileName<-FileNames,".spec"==filename:extension(FileName)],
     
-%----- master test 1  tests----------------------------------------------------
-etcd_store_deployment_test()->
-    ok=etcd_lib:store_deployment(appid_1,pod_1,cont_1,service1,machine1),
-  %  glurk=etcd_lib:read_all(),
-    {ok,[[appid_1,pod_1,cont_1,service1,machine1]]}=etcd_lib:deployment_info(all),
-    ok=etcd_lib:store_deployment(appid_2,pod_2,cont_2,service2,machine2),
-%    {ok,[[appid_1,pod_1,cont_1,service1,machine1],
-%	 [appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(all),
+    AppSpecList=[{proplists:get_value(specification,Info),
+		  proplists:get_value(vsn,Info),
+		  proplists:get_value(machine,Info),
+		  proplists:get_value(services,Info)}||{ok,Info}<-A],
+  %  glurk=AppSpecList,
+    [etcd_lib:create_catalog(AppId,Vsn,Machine,Services)||{AppId,Vsn,Machine,Services}<-AppSpecList],
     
-    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(appid,appid_2),
-    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(pod,pod_2),
-    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(container,cont_2),
-    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(service,service2),
-    {ok,[[appid_2,pod_2,cont_2,service2,machine2]]}=etcd_lib:deployment_info(machine,machine2),
-
-    {error,[no_machine_info,etcd_lib,_100]}=etcd_lib:deployment_info(machine,glurk),
-    {error,[wrong_type,glurk,etcd_lib,_93]}=etcd_lib:deployment_info(glurk,machine2),
-
-
     ok.
 
+read_catalog_apps_test()->
+    {ok,[[new_test_app,"1.0.0","machine_w1@asus",
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_catalog(appid,new_test_app),
+
+    {ok,[[new_test_2_app,"1.0.0",any,
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t3_service"},{url,url_t3_service}}]]]}=etcd_lib:read_catalog(machine,any),
+
+    {error,[wrong_type,glurk,etcd_lib,_113]}=etcd_lib:read_catalog(glurk,any),
+
+    {error,[no_info,etcd_lib,_120]}=etcd_lib:read_catalog(machine,glurk),
+    ok.
+
+%%-------- etcd-wanted--------------------
+
+store_wanted_apps_test()->
+    {ok,I}=file:consult(?ETCD_INIT_FILE),
+    [{_Type,Path}]=proplists:get_value(app_specs,I),
+    {ok,FileNames}=file:list_dir(Path),
+    A=[file:consult(filename:join(Path,FileName))||FileName<-FileNames,".spec"==filename:extension(FileName)],
+    
+    AppSpecList=[{proplists:get_value(specification,Info),
+		  proplists:get_value(vsn,Info),
+		  proplists:get_value(machine,Info),
+		  proplists:get_value(services,Info)}||{ok,Info}<-A],
+  %  glurk=AppSpecList,
+    [etcd_lib:create_wanted(AppId,Vsn,Machine,Services)||{AppId,Vsn,Machine,Services}<-AppSpecList],
+    
+    ok.
+
+read_wanted_apps_test()->
+    {ok,[[new_test_app,"1.0.0","machine_w1@asus",
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_wanted(appid,new_test_app),
+
+    {ok,[[new_test_2_app,"1.0.0",any,
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t3_service"},{url,url_t3_service}}]]]}=etcd_lib:read_wanted(machine,any),
+
+    {error,[wrong_type,glurk,etcd_lib,_113]}=etcd_lib:read_wanted(glurk,any),
+
+    {error,[eexists,machine,glurk,etcd_lib,_184]}=etcd_lib:read_wanted(machine,glurk),
+    ok.
+
+update_wanted_apps_test()->
+    {ok,[[new_test_app,"1.0.0","machine_w1@asus",
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_wanted(appid,new_test_app),
+
+    %% Change Machines and Services
+    true=etcd_lib:update_wanted(new_test_app,"1.0.0",new_machine,[services]),
+    {ok,[[new_test_app,"1.0.0",new_machine,[services]]]}=etcd_lib:read_wanted(appid,new_test_app),
+    ok.
+
+delete_wanted_test()->
+    {ok,[[new_test_app,"1.0.0",new_machine,[services]]]}=etcd_lib:read_wanted(appid,new_test_app),
+    true=etcd_lib:delete_wanted(new_test_app,"1.0.0"),
+    {error,[eexists,appid,new_test_app,etcd_lib,_184]}= etcd_lib:read_wanted(appid,new_test_app),
+
+    etcd_lib:create_wanted(new_test_app,"1.0.0","machine_w1@asus",
+			   [{{service,"t1_service"},{dir,path_t1_service}},
+			    {{service,"t2_service"},{url,url_t2_service}}]),
+    {ok,[[new_test_app,"1.0.0","machine_w1@asus",
+	  [{{service,"t1_service"},{dir,path_t1_service}},
+	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_wanted(appid,new_test_app),
+    ok.
+
+
+%%--------------- etcd- deployment ------------------------------------------------------
+create_deployment_test()->
+    {ok,ListOfWantedApps}=etcd_lib:read_wanted(all),
+  %  [WantedApp|_T]=ListOfWantedApps,
+  %  [AppId,Vsn,Machine,ServiceList]=WantedApp,
+
+%{{service,"t1_service"},{dir,path_t1_service}}
+    %% 
+    
+    create_dep(ListOfWantedApps,pod_1,container_1,timestamp_1),
+    
+    ok.
+%% Support function
+create_dep([],_Pod,_Container,_TimeStamp)->
+    ok;
+create_dep([[AppId,Vsn,Machine,ServiceList]|T],Pod,Container,TimeStamp)->
+    [etcd_lib:create_deployment(AppId,Vsn,Machine,Pod,Container,Service,TimeStamp)||
+	{{service,Service},_}<-ServiceList],
+    create_dep(T,Pod,Container,TimeStamp).
+    
+read_deployment_test()->
+    {ok,DeployedApps}=etcd_lib:read_deployment(all), 
+    {ok,_}=etcd_lib:read_deployment(machine,any),
+    [pod_1,pod_1]=blueprints:find_service("t1_service"),
+    {error,[no_machine_info,etcd_lib,_262]}=blueprints:find_service(glurk),
+    ok.
+
+missing_apps_test()->
+    etcd_lib:create_wanted(missing_app,"1.0.2",machine, [missingServices]),
+    etcd_lib:create_deployment(deprichiated_app,"2.0.1",machine_dep,pod_dep,cont_dep,service_dep,timestamp_dep),
+    glurk=blueprints:missing_apps(),
+    ok.
+
+deprichiated_apps_test()->
+    glurk=blueprints:deprichiated_apps(),
+    ok.
 
 stop_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],

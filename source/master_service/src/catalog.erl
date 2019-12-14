@@ -1,19 +1,19 @@
 %%% -------------------------------------------------------------------
 %%% Author  : Joq Erlang
-%%% Description : master controller
-%%% Starts and stops applications 
-%%% Input is application specs located on disk or github
-%%% etcd ets stores information
-%%%    (application specs)
-%%%    deployed applications
-%%%    
-%%% rd_services is used to 
-%%%  identify which applications are working 
-%%%  
+%%% Description : Catalog
+%%% > Catalog  of availible Applications
+%%% > Parses applications specifictions 
+%%% > Interacts with github or local disk to get app  specifications
+%%% > Uses etcd   
+%%% > Handles all application specifications aOrchestrait applications and services dependent on application, 
+%%% services specifications and availiblity of nodes 
+%%% Load and start node_controller_services, lib_service and log_service
+%%% on each boards 
+%%% master controller holds the central service discovery 
 %%%   
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(master_service). 
+-module(catalog). 
 
 -behaviour(gen_server).
 %% --------------------------------------------------------------------
@@ -22,12 +22,24 @@
 
 
 %% --------------------------------------------------------------------
- 
+%% --------------------------------------------------------------------
+%% Ets records
+%% 
+%% --------------------------------------------------------------------
+%   1. sd: {sd,Service,Pod,TimeStamp}
+%   2. app_specs {catalog,{AppSpec,Name},{vsn,Vsn},{info,Info},{status,loaded|not_loaded}}
+%   3. machine  {machine_info,{info,Info},{status,started|not_started}}
+%   4. service  {service_info,{service,Service},{pod,Pod},{machine,Machine,AppSpec},
+%               {time,TimeStamp},{status,started|not_started}}
+
 %% --------------------------------------------------------------------
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
 -record(state,{app_list,started,not_started,deployment_log}).
+
+%%---------------------------------------------------------------------
+-define(ETCD_INIT_FILE,"etcd_initial.config").
 
 -define(NODES_CONFIG,"nodes.config").
 -define(NODES_SIMPLE_CONFIG,"nodes_simple.config").
@@ -105,6 +117,11 @@ orchistrate(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
+    ok=etcd_lib:init(?ETCD_INIT_FILE),
+    %ok=etcd_lib:init(InitialConfiguration),
+    
+    
+    
     ok=application:start(iaas_service),
     io:format("Dbg ~p~n",[{?MODULE, application_started}]),
     {ok, #state{app_list=[],started=[],not_started=[],deployment_log=[{date(),time(),started,[]}]

@@ -1,0 +1,14 @@
+Information
+
+active_boards()->[{board_id,node}]
+get_node_by_board(board_id)->node|{error,eexists,board_id}
+get_board_by_node(node)->board_id|{error,eexists,node}
+set_board_node(board_id,node)->ok
+
+active_services()->[{service,node}]
+get_service(Service)->[]|[nodes]
+set_service(Service,node)->ok
+
+
+
+
