@@ -15,12 +15,53 @@
 %% External exports
 
 -export([find_service/1,
-	missing_apps/0,deprichiated_apps/0]).
+	 missing_apps/0,deprechiated_apps/0,
+	 create_machine_by_id/2,create_machine/2,
+	 update_machine_by_id/2,update_machine/2,
+	 read_machine_by_id/1,read_machine/1,read_machine/2,
+	 delete_machine_by_id/1,delete_machine/1
+	]).
 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+
+%% --------------------------------------------------------------------
+%% Function:init 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+create_machine_by_id(MachineId,Status)-> % guard is atom 
+    Machine=list_to_atom(MachineId),
+    create_machine(Machine,Status).
+create_machine(Machine,Status)->
+    etcd_lib:create_machine(Machine,Status).
+
+update_machine_by_id(MachineId,Status)->
+    Machine=list_to_atom(MachineId),
+    update_machine(Machine,Status).
+update_machine(Machine,Status)->
+    etcd_lib:update_machine(Machine,Status).
+
+read_machine(all)->
+    etcd_lib:read_machine(all);
+read_machine(Machine)->    
+    etcd_lib:read_machine(machine,Machine).
+
+
+read_machine_by_id(MachineId)->
+    read_machine(list_to_atom(MachineId)).
+
+read_machine(status,Status)->
+    etcd_lib:read_machine(status,Status).
+
+delete_machine_by_id(MachineId)->
+    Machine=list_to_atom(MachineId),
+    delete_machine(Machine).
+delete_machine(Machine)->
+    etcd_lib:delete_machine(Machine).
+
 %% --------------------------------------------------------------------
 %% Function:init 
 %% Description:
@@ -35,7 +76,11 @@ find_service(Service)->
 	   end,
     Result.
 
-
+%% --------------------------------------------------------------------
+%% Function:init 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
 missing_apps()->
     {ok,DeployedApps}=etcd_lib:read_deployment(all),
     {ok,WantedApps}=etcd_lib:read_wanted(all),
@@ -47,7 +92,13 @@ missing_apps()->
  %    ' FilteredDeployedApps=  ',FilteredDeployedApps}.    
     MissingApps.
 
-deprichiated_apps()->
+%% --------------------------------------------------------------------
+%% Function:init 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+deprechiated_apps()->
   {ok,DeployedApps}=etcd_lib:read_deployment(all),
     {ok,WantedApps}=etcd_lib:read_wanted(all),
     FilteredWantedApps=[{WantedAppId,WantedVsn}||[WantedAppId,WantedVsn,_,_]<-WantedApps],
@@ -57,6 +108,11 @@ deprichiated_apps()->
     
     DepApps.
 
+%% --------------------------------------------------------------------
+%% Function:init 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
 remove_double([],DoubleRemoved)->
     DoubleRemoved;
 remove_double([[AppId,Vsn,_,_,_,_,_]|T],Acc)->

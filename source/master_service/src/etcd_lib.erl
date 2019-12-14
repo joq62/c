@@ -55,13 +55,76 @@
 	 create_wanted/4,update_wanted/4,
 	 delete_wanted/2,read_wanted/1,read_wanted/2,
 	 create_catalog/4,update_catalog/4,
-	 delete_catalog/2,read_catalog/1,read_catalog/2
+	 delete_catalog/2,read_catalog/1,read_catalog/2,
+	 create_machine/2,update_machine/2,
+	 delete_machine/1,read_machine/1,read_machine/2
 	]).
 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+create_machine(Machine,Status)->
+    NewMachine={{machine,Machine,Status},Machine,Status},
+    ets:insert(?ETS_NAME,NewMachine),
+    ok.
+update_machine(Machine,NewStatus)->
+    Result=case ets:match(?ETS_NAME,{{machine,Machine,'_'},'$1','$2'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldMachine,OldStatus]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{machine,OldMachine,OldStatus},OldMachine,OldStatus}),
+		   ets:insert(?ETS_NAME,{{machine,Machine,NewStatus},Machine,NewStatus})	   
+	   end,
+    Result.
+
+delete_machine(Machine)->
+    Result=case ets:match(?ETS_NAME,{{machine,Machine,'_'},'$1','$2'}) of
+	       []->
+		   {error,[]};
+	       Info-> % It should only be one! 
+		   [[OldMachine,OldStatus]|_]=Info,
+		   ets:delete_object(?ETS_NAME,{{machine,OldMachine,OldStatus},OldMachine,OldStatus})
+	   end,
+    Result.
+
+read_machine(all)->
+    Result=case  ets:match(?ETS_NAME,{{machine,'_','_'},'$1','$2'}) of
+	       []->
+		   {error,[no_machine_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+read_machine(Type,Key)->
+    Infos = case Type of	    
+		machine->
+		    ets:match(?ETS_NAME,{{machine,Key,'_'},'$1','$2'});
+		status->
+		    ets:match(?ETS_NAME,{{machine,'_',Key},'$1','$2'});
+		_Err->
+		    {error,[wrong_type,Type,?MODULE,?LINE]}
+	    end,
+		    
+    Result=case Infos of
+	       {error,Err1}->
+		   {error,Err1};
+	       []->
+		   {error,[no_info,?MODULE,?LINE]};
+	       Infos->
+		   A=[Info||Info<-Infos],
+		   {ok,A}
+	   end,
+    Result.
+
+
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:

@@ -93,16 +93,17 @@ create(Pod,PodId,ServiceList)->
 
 create_container(_Pod,_PodId,[],CreateResult)->    
     CreateResult;
-create_container(Pod,PodId,[{ServiceId,EnvList}|T],Acc)->
-    NewAcc=[c_container(Pod,PodId,{ServiceId,EnvList})|Acc],
+
+create_container(Pod,PodId,[{{service,ServiceId},{Type,Source}}|T],Acc)->
+    NewAcc=[c_container(Pod,PodId,{ServiceId,Type,Source})|Acc],
     create_container(Pod,PodId,T,NewAcc).
     
-c_container(Pod,PodId,{ServiceId,EnvList})->
+c_container(Pod,PodId,{ServiceId,Type,Source})->
     Result =case is_loaded(Pod,PodId,ServiceId) of
 		true->
 		    {error,[service_already_loaded,Pod,PodId,ServiceId,?MODULE,?LINE]};
 		false ->
-		    case clone(Pod,PodId,ServiceId) of
+		    case clone(Pod,PodId,{ServiceId,Type,Source}) of
 			{error,Err}->
 		    {error,Err};
 			ok ->
@@ -111,7 +112,7 @@ c_container(Pod,PodId,{ServiceId,EnvList})->
 				    {error,Err};
 				ok ->
 				    %timer:sleep(10000),
-				    case start(Pod,PodId,ServiceId,EnvList) of
+				    case start(Pod,PodId,ServiceId) of
 					{error,Err}->
 					    {error,Err};
 					ok->
@@ -148,25 +149,27 @@ is_loaded(Pod,PodId,ServiceId)->
 %% Description:
 %% Returns: ok|{erro,compile_info}|{error,nodedown}
 %% --------------------------------------------------------------------
-clone(Pod,PodId,ServiceId)->
-    %Needs to be changed when using git cloen 
-    % 1. git clone https .....
-    % 2. mv -r Service PodID
-    % local test
-    Path=filename:join(?GITHUB,ServiceId),
-    Result=case rpc:call(Pod,os,cmd,["cp -r "++Path++" "++PodId]) of
-	       []->
-		   case rpc:call(Pod,filelib,is_dir,[filename:join(PodId,ServiceId)],5000) of
-		       true->
-			   ok;
-		       false->
-			    {error,[enoent,filename:join(PodId,ServiceId),Pod,PodId,ServiceId,?FILE,?LINE]}
+clone(Pod,PodId,{ServiceId,Type,Source})->
+    Result=case Type of
+	       git->
+		   glurk_git_not_implmented;
+	       dir->
+		   Path=filename:join(Source,ServiceId),
+		   case rpc:call(Pod,os,cmd,["cp -r "++Path++" "++PodId]) of
+		       []->
+			   case rpc:call(Pod,filelib,is_dir,[filename:join(PodId,ServiceId)],5000) of
+			       true->
+				   ok;
+			       false->
+				   {error,[enoent,filename:join(PodId,ServiceId),Pod,PodId,ServiceId,?FILE,?LINE]}
+			   end;
+		       {badrpc,Err} ->
+			   {error,[badrpc,Pod,PodId,ServiceId,Err,?MODULE,?LINE]};
+		       Err->
+			   {error,Err}
 		   end;
-	       {badrpc,Err} ->
-		   {error,[badrpc,Pod,PodId,ServiceId,Err,?MODULE,?LINE]};
 	       Err->
-%		   timer:sleep(10000),
-		   {error,Err}
+		   {error,[unmatched_signal,ServiceId,Type,Source,Err,?MODULE,?LINE]}
 	   end,
     Result.
 
@@ -220,12 +223,11 @@ compile(Pod,PodId,ServiceId)->
 %% Description:
 %% Returns: ok|{erro,compile_info}|{error,nodedown}
 %% --------------------------------------------------------------------
-start(Pod,PodId,ServiceId,EnvList)->
+start(Pod,PodId,ServiceId)->
     PathServiceEbin=filename:join([PodId,ServiceId,"ebin"]),
     Result = case rpc:call(Pod,code,add_path,[PathServiceEbin],5000) of
 		 true->
 		     Service=list_to_atom(ServiceId),
-		     [application:set_env(Service,Key,Value)||{Key,Value}<-EnvList],
 		     case rpc:call(Pod,application,start,[Service],5000) of
 			 ok->
 			     ok;

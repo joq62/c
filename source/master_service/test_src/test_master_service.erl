@@ -15,7 +15,7 @@
 -define(CATALOGE,"/home/pi/erlang/c/catalogue").
 -define(ETCD_INIT_FILE,"etcd_initial.config").
 
-
+-define(MACHINE_LIST,["machine_m1@asus","machine_m2@asus","machine_w1@asus","machine_w2@asus","machine_w3@asus"]).
 -define(POD_ID,["machine_w1","machine_w2","machine_w3"]).
 
 -define(W1,'worker_1@asus').
@@ -69,9 +69,7 @@ read_catalog_apps_test()->
 	  [{{service,"t1_service"},{dir,path_t1_service}},
 	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_catalog(appid,new_test_app),
 
-    {ok,[[new_test_2_app,"1.0.0",any,
-	  [{{service,"t1_service"},{dir,path_t1_service}},
-	   {{service,"t3_service"},{url,url_t3_service}}]]]}=etcd_lib:read_catalog(machine,any),
+    {ok,_}=etcd_lib:read_catalog(machine,any),
 
     {error,[wrong_type,glurk,etcd_lib,_113]}=etcd_lib:read_catalog(glurk,any),
 
@@ -100,9 +98,7 @@ read_wanted_apps_test()->
 	  [{{service,"t1_service"},{dir,path_t1_service}},
 	   {{service,"t2_service"},{url,url_t2_service}}]]]}=etcd_lib:read_wanted(appid,new_test_app),
 
-    {ok,[[new_test_2_app,"1.0.0",any,
-	  [{{service,"t1_service"},{dir,path_t1_service}},
-	   {{service,"t3_service"},{url,url_t3_service}}]]]}=etcd_lib:read_wanted(machine,any),
+    {ok,_}=etcd_lib:read_wanted(machine,any),
 
     {error,[wrong_type,glurk,etcd_lib,_113]}=etcd_lib:read_wanted(glurk,any),
 
@@ -154,7 +150,7 @@ create_dep([[AppId,Vsn,Machine,ServiceList]|T],Pod,Container,TimeStamp)->
     create_dep(T,Pod,Container,TimeStamp).
     
 read_deployment_test()->
-    {ok,DeployedApps}=etcd_lib:read_deployment(all), 
+    {ok,_DeployedApps}=etcd_lib:read_deployment(all), 
     {ok,_}=etcd_lib:read_deployment(machine,any),
     [pod_1,pod_1]=blueprints:find_service("t1_service"),
     {error,[no_machine_info,etcd_lib,_262]}=blueprints:find_service(glurk),
@@ -162,13 +158,29 @@ read_deployment_test()->
 
 missing_apps_test()->
     etcd_lib:create_wanted(missing_app,"1.0.2",machine, [missingServices]),
-    etcd_lib:create_deployment(deprichiated_app,"2.0.1",machine_dep,pod_dep,cont_dep,service_dep,timestamp_dep),
-    glurk=blueprints:missing_apps(),
+    etcd_lib:create_deployment(deprechiated_app,"2.0.1",machine_dep,pod_dep,cont_dep,service_dep,timestamp_dep),
+    [{missing_app,"1.0.2"}]=blueprints:missing_apps(),
     ok.
 
-deprichiated_apps_test()->
-    glurk=blueprints:deprichiated_apps(),
+deprechiated_apps_test()->
+    [{deprechiated_app,"2.0.1"}]=blueprints:deprechiated_apps(),
     ok.
+%%---------------- etcd -MACHINE --------------------------
+
+machines_test()->
+    [blueprints:create_machine_by_id(MachineId,passive)||MachineId<-?MACHINE_LIST],
+    {ok,_}=blueprints:read_machine(all),
+    {ok,[[machine_w3@asus,passive]]}=blueprints:read_machine_by_id("machine_w3@asus"),
+    {ok,[[machine_w3@asus,passive]]}=blueprints:read_machine('machine_w3@asus'),
+    blueprints:update_machine_by_id("machine_w3@asus",active),
+    {ok,[[machine_w3@asus,active]]}=blueprints:read_machine('machine_w3@asus'),
+   
+    {ok,[[machine_w3@asus,active]]}=blueprints:read_machine(status,active),
+    {ok,_}=blueprints:read_machine(status,passive),
+    ok.
+
+
+
 
 stop_test()->
     [pod:delete(node(),PodId)||PodId<-?POD_ID],
