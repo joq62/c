@@ -30,13 +30,21 @@
 %% --------------------------------------------------------------------
 start()->
     % Check if all test nodes are running
+
     {ok,I}=file:consult(?TEST_BOARDS_CONF),
-    
+    io:format("~p ",[time()]),  
+    io:format(">>>>>>>>  Create test nodes = ~p~n",[I]),
     [pod:delete(node(),PodId)||PodId<-I],
-    A=[pod:create(node(),PodId)||PodId<-I],
-    Pods=[Pod||{ok,Pod}<-A],
-    
+    A=[{PodId,pod:create(node(),PodId)}||PodId<-I],
+    PodsInfo=[{PodId,Pod}||{PodId,{ok,Pod}}<-A],
     ok=ping_test(),    
+    
+    io:format("~p ",[time()]),
+    io:format(">>>>>>> Test nodes running = ~p~n",[I]),
+    
+    %% Load board start board controller
+    %% This shall be done on boot 
+
     %PodsId=[atom_to_list(Pod)||Pod<-Pods],
     os:cmd("cp -r ebin board_w3/ebin"),
     os:cmd("cp -r src/*.app board_w3/ebin"),

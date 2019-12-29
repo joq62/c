@@ -42,6 +42,14 @@
 
 %% --------------------------------------------------------------------
 -define(ETS_NAME,etcd_ets).
+-define(ETS_MACHINE,etcd_ets_machine).
+
+-record(machine,{node,status=passive}).
+%-record(catalog,{appid,vsn,machine_node,service_list}).
+%-record(wanted,{appid,vsn,machine,services}).
+%-record(deployment,{appid,vsn,machine,pod,container,service,timestamp}).
+
+	  
 %% External exports
 
 
@@ -64,24 +72,35 @@
 %% ====================================================================
 %% External functions
 %% ====================================================================
+init(_InitialConfiguration)->
+    ?ETS_NAME=ets:new(?ETS_NAME, [bag, named_table]),
+ %   ?ETS_MACHINE=ets:new(?ETS_MACHINE, [set, {keypos,#machine.node},named_table]),
+    ?ETS_MACHINE=ets:new(?ETS_MACHINE, [bag, {keypos,#machine.node},named_table]),
+    
+    ok.
+
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
 create_machine(Machine,Status)->
-    NewMachine={{machine,Machine,Status},Machine,Status},
-    ets:insert(?ETS_NAME,NewMachine),
+  %  NewMachine={{machine,Machine,Status},Machine,Status},
+    ets:insert(?ETS_MACHINE,[#machine{node=Machine,status=Status}]),
     ok.
 update_machine(Machine,NewStatus)->
-    Result=case ets:match(?ETS_NAME,{{machine,Machine,'_'},'$1','$2'}) of
-	       []->
-		   {error,[]};
-	       Info-> % It should only be one! 
-		   [[OldMachine,OldStatus]|_]=Info,
-		   ets:delete_object(?ETS_NAME,{{machine,OldMachine,OldStatus},OldMachine,OldStatus}),
-		   ets:insert(?ETS_NAME,{{machine,Machine,NewStatus},Machine,NewStatus})	   
-	   end,
+    OldStatus=ets:select(?ETS_MACHINE,[{#machine{node=Machine,status='$1'},[],['$1']}]),
+    Result=ets:insert(?ETS_MACHINE,[#machine{node=Machine,status=NewStatus}]),
+    ets:delete_object(?ETS_MACHINE,#machine{node=Machine,status=OldStatus}),
+
+ %   Result=case ets:match(?ETS_NAME,{{machine,Machine,'_'},'$1','$2'}) of
+%	       []->
+%		   {error,[]};
+%	       Info-> % It should only be one! 
+%		   [[OldMachine,OldStatus]|_]=Info,
+%		   ets:delete_object(?ETS_NAME,{{machine,OldMachine,OldStatus},OldMachine,OldStatus}),
+%		   ets:insert(?ETS_NAME,{{machine,Machine,NewStatus},Machine,NewStatus})	   
+%	   end,
     Result.
 
 delete_machine(Machine)->
@@ -95,33 +114,36 @@ delete_machine(Machine)->
     Result.
 
 read_machine(all)->
-    Result=case  ets:match(?ETS_NAME,{{machine,'_','_'},'$1','$2'}) of
-	       []->
-		   {error,[no_machine_info,?MODULE,?LINE]};
-	       Infos->
-		   A=[Info||Info<-Infos],
-		   {ok,A}
-	   end,
-    Result.
+    ets:tab2list(?ETS_MACHINE).
+    
+%    Result=case  ets:match(?ETS_NAME,{{machine,'_','_'},'$1','$2'}) of
+%	       []->
+%		   {error,[no_machine_info,?MODULE,?LINE]};
+%	       Infos->
+%		   A=[Info||Info<-Infos],
+%		   {ok,A}
+%	   end,
+ %   Result.
 read_machine(Type,Key)->
-    Infos = case Type of	    
+ 
+    Result = case Type of	    
 		machine->
-		    ets:match(?ETS_NAME,{{machine,Key,'_'},'$1','$2'});
+		    ets:select(?ETS_MACHINE,[{#machine{node=Key,status='$1'},[],[Key,'$1']}]);
 		status->
-		    ets:match(?ETS_NAME,{{machine,'_',Key},'$1','$2'});
+		    ets:select(?ETS_MACHINE,[{#machine{node='$1',status=Key},[],['$1',Key]}]);
 		_Err->
 		    {error,[wrong_type,Type,?MODULE,?LINE]}
 	    end,
 		    
-    Result=case Infos of
-	       {error,Err1}->
-		   {error,Err1};
-	       []->
-		   {error,[no_info,?MODULE,?LINE]};
-	       Infos->
-		   A=[Info||Info<-Infos],
-		   {ok,A}
-	   end,
+  %  Result=case Infos of
+%	       {error,Err1}->
+%		   {error,Err1};
+%	       []->
+%		   {error,[no_info,?MODULE,?LINE]};
+%	       Infos->
+%		   A=[Info||Info<-Infos],
+%		   {ok,A}
+%	   end,
     Result.
 
 
@@ -315,6 +337,7 @@ read_deployment(Type,Key)->
 		timestamp->
 		    ets:match(?ETS_NAME,{{deployment,'_','_','_','_','_','_',Key},'$1','$2','$3','$4','$5','$6','$7'});
 		_Err->
+
 		    {error,[wrong_type,Type,?MODULE,?LINE]}
 	    end,
 		    
@@ -333,27 +356,10 @@ read_deployment(Type,Key)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-init(_InitialConfiguration)->
-    ?ETS_NAME=ets:new(?ETS_NAME, [bag, named_table]),
-    ok.
 
 read_all()->
     ets:match(?ETS_NAME,'$1').
 
-machines_to_ets(MachineList)->
-    A=[{{machine,Machine},Machine}||Machine<-MachineList],
-    ets:insert(?ETS_NAME,A),
-    ok.
-app_specs_to_ets(dir,Path)->
-    {ok,FileNames}=file:list_dir(Path),
-    A=[file:consult(filename:join(Path,FileName))||FileName<-FileNames,".spec"==filename:extension(FileName)],
-    AppSpecList=[{catalog,proplists:get_value(specification,Info),Info}||{ok,Info}<-A],
-    ets:insert(?ETS_NAME,AppSpecList),
-    ok;
-app_specs_to_ets(url,Url)->
-    Url;
-app_specs_to_ets(Undef1,Undef2) ->
-    {error,[unmatched_signal,Undef1,Undef2,?MODULE,?LINE]}.
 
 %%-------------------------------------------------------------------------------------
 all_machines()->

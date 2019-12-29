@@ -169,9 +169,10 @@ deprechiated_apps_test()->
 
 machines_test()->
     [blueprints:create_machine_by_id(MachineId,passive)||MachineId<-?MACHINE_LIST],
-    {ok,_}=blueprints:read_machine(all),
-    {ok,[[machine_w3@asus,passive]]}=blueprints:read_machine_by_id("machine_w3@asus"),
-    {ok,[[machine_w3@asus,passive]]}=blueprints:read_machine('machine_w3@asus'),
+    AllMachines=blueprints:read_machine(all),
+    true=lists:member({machine,machine_m2@asus,passive},AllMachines),
+    [passive]=blueprints:read_machine_by_id("machine_w3@asus"),
+    [passive]=blueprints:read_machine('machine_w3@asus'),
     blueprints:update_machine_by_id("machine_w3@asus",active),
     {ok,[[machine_w3@asus,active]]}=blueprints:read_machine('machine_w3@asus'),
    

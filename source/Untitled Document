@@ -1,2 +1,8 @@
-1. Architecture and Functionality split:
-1.1boot: 
+Digital twins:
+Computer_twin: Replicates all infromation , manage the real computer , Have status
+
+
+etcd_dbase:
+
+{{computer,Node,Kpi_1,Kpi_2,Status},Node,Kpi_1,Kpi_2,Status}.
+{{computer_info,Node,Pod,Application},Node,Pod,Application}.

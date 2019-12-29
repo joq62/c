@@ -11,6 +11,11 @@
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
+%% Data Type
+%% --------------------------------------------------------------------
+
+
+%% --------------------------------------------------------------------
 
 -define(START_POD_INTERVAL,50).
 -define(START_POD_TRIES,50).
@@ -61,7 +66,7 @@ start_pod(Machine,PodId,PodStr)->
   %  ErlCmd="erl -pa "++"* "++"-sname "++PodStr++" -detached",
 %    ErlCmd="erl -pa "++PodId++"/*/* "++"-sname "++PodStr++" -detached",
 
-     ErlCmd="erl "++"-sname "++PodStr++" -detached",
+    ErlCmd="erl "++"-sname "++PodStr++" -detached",
     Result= case rpc:call(Machine,os,cmd,[ErlCmd],5000) of
 		[]->
 		    case check_if_vm_started(list_to_atom(PodStr),?START_POD_INTERVAL,?START_POD_TRIES,error) of
