@@ -37,10 +37,15 @@ start()->
     %  {test_module,unit_test_lib_service},{preload,[]}}
     % Create pod to load application to test
     PodId="pod_test_1",
+    pod:delete(node(),PodId),
     {ok,Pod}=pod:create(node(),PodId),
     {ok,I}=file:consult(?UNIT_TEST_SPEC),
     Result=do_unit_test(I,Pod,PodId,[]),
-    io:format("Result ~p~n",[Result]),
+    io:format(" ~n"),
+    io:format("~p ",[time()]),
+    io:format(": Result ~n"),
+    [io:format("~p~n",[R])||R<-Result],
+    io:format(" ~n"),
     pod:delete(node(),PodId),
     init:stop(),
     ok.
@@ -56,17 +61,19 @@ do_unit_test([],_Pod,_PodId,Result)->
 do_unit_test([Info|T],Pod,PodId,Acc) ->
     {{service2test,ServiceId},{src_dir,Source},
      {test_module,TestModule},{preload,Applications}}=Info,
-    io:format("Testing  ~p~n",[ServiceId]),
+    io:format(" ~n"),
+    io:format("~p",[time()]),
+    io:format(": Testing  ~p~n",[ServiceId]),
+    io:format(" ~n"),
+  %   io:format("ping  ~p~n",[{net_adm:ping(Pod)}]),
     ok=container:create(Pod,PodId,
 			[{{service,ServiceId},
 			  {dir,Source}}
 			]),
     R=rpc:call(Pod,TestModule,test,[]),
+   % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
     container:delete(Pod,PodId,[ServiceId]),
     do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).
-
-
-
 
 %% --------------------------------------------------------------------
 %% Function:init 

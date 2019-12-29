@@ -138,7 +138,7 @@ tcp_1_test()->
 
 tcp_2_test()->
     PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    PodClient=misc_lib:get_node_by_id("pod_lib_2"),
+    _PodClient=misc_lib:get_node_by_id("pod_lib_2"),
     _Pid=rpc:call(PodServer,tcp_server,start_seq_server,[1234]),
 
     PidSession=tcp_client:connect("localhost",1234),
@@ -146,7 +146,7 @@ tcp_2_test()->
     loop_send(1000,PidSession),
     _R1=loop_get(1000,PidSession,[]),
     loop_send2(1000,PidSession,PodServer),
-    R2=loop_get(1000,PidSession,[]),
+    _R2=loop_get(1000,PidSession,[]),
     tcp_client:disconnect(PidSession),
     ok.
     
@@ -174,6 +174,3 @@ end_tcp_test()->
 
 
 %**************************************************************
-stop_test()->
-    init:stop(),
-    ok.

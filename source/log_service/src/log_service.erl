@@ -35,8 +35,8 @@
 
 
 
--export([store/7,all/0,
-	 severity/1,node/1,module/1,
+-export([store/9,all/0,
+	 severity/1,node/3,module/1,
 	 latest_event/0,latest_events/1,
 	 year/1,month/2,day/3
 	]).
@@ -82,8 +82,8 @@ latest_event()->
 severity(Severity)->
     gen_server:call(?MODULE, {severity,Severity},infinity).
 
-node(Node)->
-    gen_server:call(?MODULE, {node,Node},infinity).
+node(IpAddr,Port,Pod)->
+    gen_server:call(?MODULE, {node,IpAddr,Port,Pod},infinity).
 
 module(Module)->
     gen_server:call(?MODULE, {module,Module},infinity).
@@ -94,8 +94,8 @@ all()->
 
 %%-----------------------------------------------------------------------
  
-store(Date,Time,Node,Module,Line,Severity,Msg)->
-    gen_server:cast(?MODULE, {store,Date,Time,Node,Module,Line,Severity,Msg}).
+store(Date,Time,IpAddr,Port,Pod,Module,Line,Severity,Msg)->
+    gen_server:cast(?MODULE, {store,Date,Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}).
 
 heart_beat(Interval)->
     gen_server:cast(?MODULE, {heart_beat,Interval}).
@@ -116,8 +116,7 @@ heart_beat(Interval)->
 %% --------------------------------------------------------------------
 init([]) ->
     % init logfile 
-    ok=log:init_logfile(),
-    
+   ok=log:init_logfile(),
  %   {ok,Info} = file:consult(?NODE_CONFIG),
  %   {controller_pods,ControllerPods}=lists:keyfind(controller_pods,1,Info),
   %  {sd_pods,SdPods}=lists:keyfind(sd_pods,1,Info),
@@ -158,8 +157,8 @@ handle_call({severity,Severity}, _From, State) ->
      Reply=rpc:call(node(),log,severity,[Severity]),
     {reply, Reply, State};
 
-handle_call({node,Node}, _From, State) ->
-     Reply=rpc:call(node(),log,node,[Node]),
+handle_call({node,IpAddr,Port,Pod}, _From, State) ->
+     Reply=rpc:call(node(),log,node,[IpAddr,Port,Pod]),
     {reply, Reply, State};
 
 handle_call({module,Module}, _From, State) ->
@@ -185,9 +184,9 @@ handle_call(Request, From, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_cast({store,Date,Time,Node,Module,Line,Severity,Msg}, State) ->
+handle_cast({store,Date,Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}, State) ->
 
-    ok=log:store(Date,Time,Node,Module,Line,Severity,Msg),
+    ok=log:store(Date,Time,IpAddr,Port,Pod,Module,Line,Severity,Msg),
     {noreply, State};
 
 

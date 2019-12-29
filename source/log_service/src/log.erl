@@ -20,16 +20,20 @@
 
 %% External exports
 -record(syslog_info,{date,time,
-		     node,module,line,
+		     ip_addr,
+		     port,
+		     pod,
+		     module,
+		     line,
 		     severity,
 		     message}).
 %Severity  emerency,critical,error,warning,notice,info,debug
 
 
 
--export([init_logfile/0,store/7,
+-export([init_logfile/0,store/9,
 	 all/0,
-	 severity/1,node/1,module/1,
+	 severity/1,node/3,module/1,
 	 latest_event/0,latest_events/1,
 	 year/1,month/2,day/3
 	]).
@@ -45,16 +49,17 @@
 %% --------------------------------------------------------------------
 day(Y,M,D)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
+    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+	S#syslog_info.pod,S#syslog_info.module,
+	S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
     day(Y,M,D,L,[]).
 
 day(_,_,_,[],Result)->
     Result;
-day(Y,M,D,[{{Y1,M1,D1},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
+day(Y,M,D,[{{Y1,M1,D1},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|T],Acc) ->
     NewAcc=case {Y,M,D}=={Y1,M1,D1} of
 	       true->
-		   [{{Y1,M1,D1},Time,Node,Module,Line,Severity,Msg}|Acc];
+		   [{{Y1,M1,D1},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|Acc];
 	       false->
 		   Acc
 	   end,
@@ -67,16 +72,17 @@ day(Y,M,D,[{{Y1,M1,D1},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
 %% --------------------------------------------------------------------
 month(Y,M)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
+    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+	S#syslog_info.pod,S#syslog_info.module,
+	S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
     month(Y,M,L,[]).
 
 month(_,_,[],Result)->
     Result;
-month(Y,M,[{{Y1,M1,D},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
+month(Y,M,[{{Y1,M1,D},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|T],Acc) ->
     NewAcc=case {Y,M}=={Y1,M1} of
 	       true->
-		   [{{Y1,M1,D},Time,Node,Module,Line,Severity,Msg}|Acc];
+		   [{{Y1,M1,D},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|Acc];
 	       false->
 		   Acc
 	   end,
@@ -88,16 +94,17 @@ month(Y,M,[{{Y1,M1,D},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
 %% --------------------------------------------------------------------
 year(Y)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
+    L=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+	S#syslog_info.pod,S#syslog_info.module,
+	S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
     year(Y,L,[]).
 
 year(_,[],Result)->
     Result;
-year(Y,[{{Y1,M,D},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
+year(Y,[{{Y1,M,D},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|T],Acc) ->
     NewAcc=case Y==Y1 of
 	       true->
-		   [{{Y1,M,D},Time,Node,Module,Line,Severity,Msg}|Acc];
+		   [{{Y1,M,D},Time,IpAddr,Port,Pod,Module,Line,Severity,Msg}|Acc];
 	       false->
 		   Acc
 	   end,
@@ -111,9 +118,9 @@ year(Y,[{{Y1,M,D},Time,Node,Module,Line,Severity,Msg}|T],Acc) ->
 latest_events(N)->
     {ok,Info}=file:consult(?LATEST_LOG),
     SubList=lists:sublist(Info,N),
-    
-    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-SubList],
+    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+		 S#syslog_info.pod,S#syslog_info.module,
+		 S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-SubList],
     NicePrint.
 %% --------------------------------------------------------------------
 %% Function: 
@@ -130,18 +137,23 @@ latest_event()->
 %% --------------------------------------------------------------------
 all()->
     {ok,Info}=file:consult(?LATEST_LOG),
-    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
+   NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+		S#syslog_info.pod,S#syslog_info.module,
 		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info],
     NicePrint.
+  
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-node(Node)->
+node(IpAddr,Port,Pod)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,S#syslog_info.node==Node],
+    
+    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+		S#syslog_info.pod,S#syslog_info.module,
+		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,
+	      {S#syslog_info.ip_addr,S#syslog_info.port,S#syslog_info.pod}=={IpAddr,Port,Pod}],
     NicePrint.
 
 %% --------------------------------------------------------------------
@@ -151,8 +163,10 @@ node(Node)->
 %% --------------------------------------------------------------------
 module(Module)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,S#syslog_info.module==Module],
+    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+	       S#syslog_info.pod,S#syslog_info.module,
+	       S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,
+										 S#syslog_info.module==Module],
     NicePrint.
 						     
 
@@ -163,10 +177,11 @@ module(Module)->
 %% --------------------------------------------------------------------
 severity(Severity)->
     {ok,Info}=file:consult(?LATEST_LOG),
-    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.node,S#syslog_info.module,
-		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,S#syslog_info.severity==Severity],
-    NicePrint.
-						     
+    NicePrint=[{S#syslog_info.date,S#syslog_info.time,S#syslog_info.ip_addr,S#syslog_info.port,
+		S#syslog_info.pod,S#syslog_info.module,
+		S#syslog_info.line,S#syslog_info.severity,S#syslog_info.message}||S<-Info,
+										  S#syslog_info.severity==Severity],
+    NicePrint.			     
 
 
 %% --------------------------------------------------------------------
@@ -220,11 +235,11 @@ check_size_log_file()->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-store(Date,Time,Node,Module,Line,Severity,Msg)->
+store(Date,Time,IpAddr,Port,Pod,Module,Line,Severity,Msg)->
     ok=check_size_log_file(),
     {ok,Info}=file:consult(?LATEST_LOG),
     {ok,S}=file:open(?LATEST_LOG,write),
-    SyslogInfo=#syslog_info{date=Date,time=Time,node=Node,module=Module,line=Line,severity=Severity,message=Msg},
+    SyslogInfo=#syslog_info{date=Date,time=Time,ip_addr=IpAddr,port=Port,pod=Pod,module=Module,line=Line,severity=Severity,message=Msg},
     NewContent=[SyslogInfo|Info],
     lists:foreach(fun(X)->io:format(S,"~p.~n",[X]) end,NewContent),
     file:close(S).

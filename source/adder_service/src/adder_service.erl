@@ -115,7 +115,7 @@ handle_call(Request, From, State) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
 handle_cast({heart_beat,Interval}, State) ->
-    R=[rpc:cast(SdPod,sd_service,register_service,[atom_to_list(?MODULE),node()])||SdPod<-State#state.sd_pods],
+    _R=[rpc:cast(SdPod,sd_service,register_service,[atom_to_list(?MODULE),node()])||SdPod<-State#state.sd_pods],
 %    io:format("Dbg ~p~n",[{?MODULE,?LINE,heart_beat,State#state.sd_pods,R}]),
     spawn(fun()->h_beat(Interval) end),      
     {noreply, State};

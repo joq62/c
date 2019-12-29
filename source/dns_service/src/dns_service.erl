@@ -14,7 +14,7 @@
 %% Include files
 %% --------------------------------------------------------------------
 
-
+-define(HEARTBEAT_INTERVAL,60*1000).
 %% --------------------------------------------------------------------
 %% Key Data structures
 %% 
@@ -26,8 +26,9 @@
 %% --------------------------------------------------------------------
 
 %% dns functions 
--export([add/4,delete/4,get/1,
-	 all/0,
+-export([add/4,delete/4,delete/5,
+	 get/1,expired/0,delete_expired/0,
+	 clear/0,all/0,
 	 heart_beat/0
 	]
       ).
@@ -52,26 +53,32 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 
-%%-----------------------------------------------------------------------
-
-
-%%-----------------------------------------------------------------------
-all()->
-    gen_server:call(?MODULE, {all},infinity).
+%%-------------------- Direct call -----------------------------------
+all()-> rpc:call(node(),dns_lib,all,[]).
     
-get(ServiceId)->
-    gen_server:call(?MODULE, {get,ServiceId},infinity).
+get(ServiceId)-> rpc:call(node(),dns_lib,get,[ServiceId]).
 
-heart_beat()->
-    gen_server:call(?MODULE, {heart_beat},infinity).
-%%-----------------------------------------------------------------------
+%%--------------------- Server call ------------------------------------
+expired()-> 
+    gen_server:call(?MODULE, {expired},infinity).
+clear()->
+    gen_server:call(?MODULE,{clear},infinity).  
 
+delete_expired()->
+    gen_server:call(?MODULE,{delete_expired},infinity).  
     
 add(ServiceId,IpAddr,Port,Pod)->
-    gen_server:cast(?MODULE,{add,ServiceId,IpAddr,Port,Pod}).  
+    gen_server:call(?MODULE,{add,ServiceId,IpAddr,Port,Pod},infinity).  
 
 delete(ServiceId,IpAddr,Port,Pod)->
-    gen_server:cast(?MODULE,{delete,ServiceId,IpAddr,Port,Pod}).  
+    gen_server:call(?MODULE,{delete,ServiceId,IpAddr,Port,Pod},infinity).
+
+delete(ServiceId,IpAddr,Port,Pod,Time)->
+    gen_server:call(?MODULE,{delete,ServiceId,IpAddr,Port,Pod,Time},infinity).  
+heart_beat()->
+    gen_server:call(?MODULE, {heart_beat},infinity).
+
+%%----------------------Server cast --------------------------------------
 
 %% ====================================================================
 %% Server functions
@@ -88,7 +95,7 @@ delete(ServiceId,IpAddr,Port,Pod)->
 %% --------------------------------------------------------------------
 init([]) ->
     dns_lib:init(),
-    % spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
+    spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
 
 
     io:format("Started Service  ~p~n",[{?MODULE}]),
@@ -104,13 +111,28 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-
-handle_call({all},_From, State) ->
-    Reply=rpc:call(node(),dns_lib,all,[]),
+handle_call({clear},_From,State) ->
+    Reply=rpc:call(node(),dns_lib,clear,[]),
     {reply, Reply, State};
 
-handle_call({get,ServiceId},_From, State) ->
-    Reply=rpc:call(node(),dns_lib,get,[ServiceId]),
+handle_call({expired}, _From, State) ->
+    Reply=rpc:call(node(),dns_lib,expired,[]),
+   {reply, Reply, State};
+
+handle_call({delete_expired}, _From, State) ->
+    Reply=rpc:call(node(),dns_lib,delete_expired,[]),
+    {reply, Reply, State};
+
+handle_call({add,ServiceId,IpAddr,Port,Pod}, _From,State) ->
+    Reply=rpc:call(node(),dns_lib,add,[ServiceId,IpAddr,Port,Pod]),
+    {reply, Reply, State};
+
+handle_call({delete,ServiceId,IpAddr,Port,Pod},_From,State) ->
+    Reply=rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod]),
+    {reply, Reply, State};
+
+handle_call({delete,ServiceId,IpAddr,Port,Pod,Time}, _From,State) ->
+     Reply=rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod,Time]),
     {reply, Reply, State};
 
 handle_call({heart_beat}, _From, State) ->
@@ -132,14 +154,24 @@ handle_call(Request, From, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
+handle_cast({clear}, State) ->
+    rpc:call(node(),dns_lib,clear,[]),
+    {noreply, State};
+
+handle_cast({delete_expired}, State) ->
+    rpc:call(node(),dns_lib,delete_expired,[]),
+    {noreply, State};
 
 handle_cast({add,ServiceId,IpAddr,Port,Pod}, State) ->
     rpc:call(node(),dns_lib,add,[ServiceId,IpAddr,Port,Pod]),
     {noreply, State};
 
 handle_cast({delete,ServiceId,IpAddr,Port,Pod}, State) ->
-  %  io:format("~p~n",[{?MODULE,?LINE,de_register,DnsInfo}]),
     rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod]),
+    {noreply, State};
+
+handle_cast({delete,ServiceId,IpAddr,Port,Pod,Time}, State) ->
+    rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod,Time]),
     {noreply, State};
 
 handle_cast(Msg, State) ->
