@@ -53,6 +53,7 @@ init_test()->
     pod:delete(node(),"pod_adder_1"),
     container:delete(Pod,"pod_adder_2",["adder_service"]),
     pod:delete(node(),"pod_adder_2"),
+    {pong,_,lib_service}=lib_service:ping(),
     ok.
     
 

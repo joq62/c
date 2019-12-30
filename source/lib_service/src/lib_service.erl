@@ -29,7 +29,8 @@
 
 
 
--export([start_tcp_server/2,stop_tcp_server/1
+-export([start_tcp_server/2,stop_tcp_server/1,
+	 ping/0
 	]).
 
 -export([start/0,
@@ -57,6 +58,9 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
+ping()->
+    gen_server:call(?MODULE, {ping},infinity).
+
 start_tcp_server(Port,Mode)->
     gen_server:call(?MODULE, {start_tcp_server,Port,Mode},infinity).
 
@@ -97,6 +101,9 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({ping}, _From, State) ->
+    Reply={pong,node(),?MODULE},
+    {reply, Reply,State};
 
 handle_call({start_tcp_server,Port,Mode}, _From, State) ->
     TcpServers=State#state.tcp_servers,

@@ -1,5 +1,6 @@
 all:
 	rm -rf test_src/*~ test_src/*.beam *.dump;
-	rm -rf test_ebin/*;
+	rm -rf test_ebin/* ebin/*;
+	cp /home/pi/erlang/c/source/lib_service/src/*.* test_src;
 	erlc -o test_ebin test_src/*.erl;
-	erl -pa test_ebin -pa * -s system_test start systemTest.spec -sname system_test
+	erl -pa test_ebin -pa * -s system_test start -sname system_test

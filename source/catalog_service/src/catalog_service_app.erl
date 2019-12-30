@@ -1,7 +1,7 @@
 %% Author: uabjle
 %% Created: 10 dec 2012
 %% Description: TODO: Add description to application_org
--module(catlog_service_app).
+-module(catalog_service_app).
 
 -behaviour(application).
 %% --------------------------------------------------------------------

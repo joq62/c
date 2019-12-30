@@ -1,16 +1,9 @@
 %%% -------------------------------------------------------------------
 %%% Author  : Joq Erlang
-%%% Description : log_service 
-%%% Each node has a log function that stores events from applications 
-%%% within the node
-%%% A central oam system reads out information from log files 
-%%% Solution is based on  syslog 
-%%% Log files max 5 Mb. 
-%%% current file = latest.log
-%%% full file =date_time.log stored in syslog_dir 
+%%%  
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(catalog_service).  
+-module(catalog_service). 
 
 -behaviour(gen_server).
 %% --------------------------------------------------------------------
@@ -18,53 +11,81 @@
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
 
+-define(HEARTBEAT_INTERVAL,60*1000).
 %% --------------------------------------------------------------------
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
-
-
 -record(state,{}).
 
-%% Definitions 
-
+%% --------------------------------------------------------------------
+%% Exported functions
 %% --------------------------------------------------------------------
 
+%% dns functions 
+-export([add/1,delete/2,get/2,all/0,
 
+	 delete/5,
+	 expired/0,delete_expired/0,
+	 clear/0,
+	 heart_beat/0
+	]
+      ).
 
-
--export([]).
 
 -export([start/0,
 	 stop/0
 	]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3,handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
 
-%% Asynchrounus Signals
-
-
-
 %% Gen server functions
 
 start()-> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
 stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 
-%%---------------------Call --------------------------------------------------
-
-
-%%------------------Cast -----------------------------------------------------
+%%-------------------- Direct call -----------------------------------
  
 
+
+%%--------------------- Server call ------------------------------------
+add(AppSpec)->
+    gen_server:call(?MODULE,{add,AppSpec},infinity).  
+delete(App,Vsn)->
+    gen_server:call(?MODULE,{delete,App,Vsn},infinity).
+get(App,Vsn)->
+    gen_server:call(?MODULE,{get,App,Vsn},infinity).
+all()->
+    gen_server:call(?MODULE,{all},infinity).
+    
+
+
+expired()-> 
+    gen_server:call(?MODULE, {expired},infinity).
+clear()->
+    gen_server:call(?MODULE,{clear},infinity).  
+
+delete_expired()->
+    gen_server:call(?MODULE,{delete_expired},infinity).  
+    
+
+delete(ServiceId,IpAddr,Port,Pod,Time)->
+    gen_server:call(?MODULE,{delete,ServiceId,IpAddr,Port,Pod,Time},infinity).  
+heart_beat()->
+    gen_server:call(?MODULE, {heart_beat},infinity).
+
+%%----------------------Server cast --------------------------------------
 
 %% ====================================================================
 %% Server functions
@@ -80,8 +101,12 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 %
 %% --------------------------------------------------------------------
 init([]) ->
+    catalog_lib:init(),
+%    spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
 
-    {ok, #state{}}.   
+
+    io:format("Started Service  ~p~n",[{?MODULE}]),
+   {ok, #state{}}. 
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
@@ -91,18 +116,47 @@ init([]) ->
 %%          {noreply, State}               |
 %%          {noreply, State, Timeout}      |
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
-%%          {stop, Reason, State}            (aterminate/2 is called)
+%%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_call({template,Template}, _From, State) ->
-     Reply={glurk,Template},
+handle_call({add,AppSpec},_From,State) ->
+    Reply=rpc:call(node(),catalog_lib,add,[AppSpec]),
+    {reply, Reply, State};
+
+handle_call({delete,App,Vsn},_From,State) ->
+    Reply=rpc:call(node(),catalog_lib,delete,[App,Vsn]),
+    {reply, Reply, State};
+
+handle_call({get,App,Vsn},_From,State) ->
+    Reply=rpc:call(node(),catalog_lib,get,[App,Vsn]),
+    {reply, Reply, State};
+
+handle_call({all},_From,State) ->
+    Reply=rpc:call(node(),catalog_lib,all,[]),
     {reply, Reply, State};
 
 
+handle_call({clear},_From,State) ->
+    Reply=rpc:call(node(),dns_lib,clear,[]),
+    {reply, Reply, State};
+
+handle_call({expired}, _From, State) ->
+    Reply=rpc:call(node(),dns_lib,expired,[]),
+   {reply, Reply, State};
+
+handle_call({delete_expired}, _From, State) ->
+    Reply=rpc:call(node(),dns_lib,delete_expired,[]),
+    {reply, Reply, State};
+
+handle_call({heart_beat}, _From, State) ->
+    Reply=ok,
+   {reply, Reply, State};
+    
 handle_call({stop}, _From, State) ->
     {stop, normal, shutdown_ok, State};
 
 handle_call(Request, From, State) ->
-    Reply = {unmatched_signal,?MODULE,Request,From},
+    io:format("unmatched  ~p~n",[{time(),?MODULE,?LINE,Request}]),
+     Reply = {unmatched_signal,?MODULE,Request,From},
     {reply, Reply, State}.
 
 %% --------------------------------------------------------------------
@@ -112,9 +166,28 @@ handle_call(Request, From, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
+handle_cast({clear}, State) ->
+    rpc:call(node(),dns_lib,clear,[]),
+    {noreply, State};
+
+handle_cast({delete_expired}, State) ->
+    rpc:call(node(),dns_lib,delete_expired,[]),
+    {noreply, State};
+
+handle_cast({add,ServiceId,IpAddr,Port,Pod}, State) ->
+    rpc:call(node(),dns_lib,add,[ServiceId,IpAddr,Port,Pod]),
+    {noreply, State};
+
+handle_cast({delete,ServiceId,IpAddr,Port,Pod}, State) ->
+    rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod]),
+    {noreply, State};
+
+handle_cast({delete,ServiceId,IpAddr,Port,Pod,Time}, State) ->
+    rpc:call(node(),dns_lib,delete,[ServiceId,IpAddr,Port,Pod,Time]),
+    {noreply, State};
 
 handle_cast(Msg, State) ->
-    io:format("unmatched match cast ~p~n",[{?MODULE,?LINE,Msg}]),
+    io:format("unmatched match cast ~p~n",[{time(),?MODULE,?LINE,Msg}]),
     {noreply, State}.
 
 %% --------------------------------------------------------------------
@@ -124,10 +197,11 @@ handle_cast(Msg, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_info(Info, State) ->
-    io:format("unmatched match info ~p~n",[{?MODULE,?LINE,Info}]),
-    {noreply, State}.
 
+
+handle_info(Info, State) ->
+    io:format("unmatched match cast ~p~n",[{time(),?MODULE,?LINE,Info}]),
+    {noreply, State}.
 
 %% --------------------------------------------------------------------
 %% Function: terminate/2
@@ -158,10 +232,20 @@ code_change(_OldVsn, State, _Extra) ->
 %% --------------------------------------------------------------------
 %% Internal functions
 %% --------------------------------------------------------------------
+    
 
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-
+local_heart_beat(Interval)->
+  %  io:format(" ~p~n",[{?MODULE,?LINE}]),
+    timer:sleep(Interval),
+    ?MODULE:heart_beat(),
+    spawn(fun()-> local_heart_beat(Interval) end).
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
