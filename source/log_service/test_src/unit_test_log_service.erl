@@ -50,6 +50,7 @@ test()->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_test()->
+    {pong,_,log_service}=log_service:ping(),
     {ok,Pod}=pod:create(node(),"pod_1"),
    % ok=container:create(Pod,"pod_1",
 %			[{{service,"lib_service"},

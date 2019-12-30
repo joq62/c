@@ -35,7 +35,8 @@
 
 
 
--export([store/9,all/0,
+-export([ping/0,
+	 store/9,all/0,
 	 severity/1,node/3,module/1,
 	 latest_event/0,latest_events/1,
 	 year/1,month/2,day/3
@@ -66,6 +67,9 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
+ping()->
+    gen_server:call(?MODULE, {ping},infinity).
+
 year(Year)->
     gen_server:call(?MODULE, {year,Year},infinity).
 month(Year,Month)->
@@ -133,6 +137,10 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({ping}, _From, State) ->
+     Reply={pong,node(),?MODULE},
+    {reply, Reply, State};
+
 handle_call({year,Year}, _From, State) ->
      Reply=rpc:call(node(),log,year,[Year]),
     {reply, Reply, State};

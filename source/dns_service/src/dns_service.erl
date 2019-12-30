@@ -29,6 +29,7 @@
 -export([add/4,delete/4,delete/5,
 	 get/1,expired/0,delete_expired/0,
 	 clear/0,all/0,
+	 ping/0,
 	 heart_beat/0
 	]
       ).
@@ -59,6 +60,9 @@ all()-> rpc:call(node(),dns_lib,all,[]).
 get(ServiceId)-> rpc:call(node(),dns_lib,get,[ServiceId]).
 
 %%--------------------- Server call ------------------------------------
+ping()-> 
+    gen_server:call(?MODULE, {ping},infinity).
+
 expired()-> 
     gen_server:call(?MODULE, {expired},infinity).
 clear()->
@@ -111,6 +115,10 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({ping},_From,State) ->
+    Reply={pong,node(),?MODULE},
+    {reply, Reply, State};
+
 handle_call({clear},_From,State) ->
     Reply=rpc:call(node(),dns_lib,clear,[]),
     {reply, Reply, State};

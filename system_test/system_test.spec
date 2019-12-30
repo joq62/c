@@ -5,6 +5,6 @@
 {lib_service,[{{service,"lib_service"},{dir,"/home/pi/erlang/c/source"}}]}.
 
 {apps,[{{service,"iaas_service"},{dir,"/home/pi/erlang/c/source"},
-	{computer,"master_computer",'master_computer@asus'}}]}.
+	{computer,"master_computer"}}]}.
 
      

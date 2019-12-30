@@ -45,7 +45,7 @@ test()->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_test()->
-    
+     {pong,_,catalog_service}=catalog_service:ping(),
     ok.
     
 %------------------  -------

@@ -27,7 +27,7 @@
 % LibService=[{{service,"libservice_service"},{dir,"/home/pi/erlang/c/source"}}]
 % AppList={{service,"iaas_service"},{dir,"/home/pi/erlang/c/source"},{computer,"master_computer",'master_computer@asus'}}
 
-start(ComputerList, AppList,LibService)->
+start(ComputerList,LibService)->
     PodList=[{pod:create(node(),ComputerId),ComputerId}||{ComputerId,Computer,_IpAddr,_Port}<-ComputerList],
     [pong,pong,pong]=[rpc:call(node(),net_adm,ping,[Computer])||{{ok,Computer},_ComputerId}<-PodList],
     % Pods ok 
@@ -36,7 +36,7 @@ start(ComputerList, AppList,LibService)->
     
     % Allocate a tcp Server per Computer
     
-    [rpc:call(Computer,tcp_server,start_seq_server,[Port])||{_ComputerId,Computer,_IpAddr,Port}<-ComputerList],
+    [rpc:call(Computer,tcp_server,start_par_server,[Port])||{_ComputerId,Computer,_IpAddr,Port}<-ComputerList],
     [{pong,_,_},
      {pong,_,_},
      {pong,_,_}]=[rpc:call(node(),tcp_client,call,[{IpAddr,Port},{lib_service,ping,[]}])||{_ComputerId,_Computer,IpAddr,Port}<-ComputerList],
@@ -47,7 +47,7 @@ start(ComputerList, AppList,LibService)->
     io:format(" ~n"),
     ok.
 
-stop(ComputerList,_AppList,_LibService)->	
+stop(ComputerList)->	
     [container:delete(Computer,ComputerId,["lib_service"])||{ComputerId,Computer,_,_}<-ComputerList],
     [pod:delete(node(),ComputerId)||{ComputerId,_Computer,_,_}<-ComputerList],
     [pang,pang,pang]=[rpc:call(node(),net_adm,ping,[Computer])||{_ComputerId,Computer,_,_}<-ComputerList],

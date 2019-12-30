@@ -27,7 +27,7 @@
 
 %% dns functions 
 -export([add/1,delete/2,get/2,all/0,
-
+	 ping/0,
 	 delete/5,
 	 expired/0,delete_expired/0,
 	 clear/0,
@@ -60,6 +60,9 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%--------------------- Server call ------------------------------------
+ping()->
+    gen_server:call(?MODULE,{ping},infinity).
+
 add(AppSpec)->
     gen_server:call(?MODULE,{add,AppSpec},infinity).  
 delete(App,Vsn)->
@@ -118,6 +121,10 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({ping},_From,State) ->
+    Reply={pong,node(),?MODULE},
+    {reply, Reply, State};
+
 handle_call({add,AppSpec},_From,State) ->
     Reply=rpc:call(node(),catalog_lib,add,[AppSpec]),
     {reply, Reply, State};

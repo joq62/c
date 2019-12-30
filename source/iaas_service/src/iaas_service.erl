@@ -40,6 +40,7 @@
 %% user interface
 -export([active/0,passive/0,
 	 status/3,
+	 ping/0,
 	 add/4,change_status/4,
 	 delete/3,delete/4,
 	 all/0,check_all_status/0	 
@@ -76,6 +77,9 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%----------------------------------------------------------------------
+ping()->
+    gen_server:call(?MODULE,{ping},infinity).
+
 active()->
     gen_server:call(?MODULE,{active},infinity).
 passive()->
@@ -168,6 +172,10 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({ping}, _From, State) ->
+    Reply={pong,node(),?MODULE},
+    {reply, Reply, State};
+
 handle_call({active}, _From, State) ->
     Reply=rpc:call(node(),iaas,active,[]),
     {reply, Reply, State};

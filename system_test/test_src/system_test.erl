@@ -36,16 +36,26 @@ start()->
     {apps,Apps}=lists:keyfind(apps,1,I),
     
     %clean up
-    rpc:call(node(),infrastructure,stop,[Computers,Apps,LibService]),
+    rpc:call(node(),infrastructure,stop,[Computers]),
     % New session 
-    R=rpc:call(node(),infrastructure,start,[Computers,Apps,LibService]),
-    io:format("~p~n",[R]),
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,start,[Computers,LibService])}]),
+   
+    % Load services
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,start,[Apps,Computers,LibService])}]),
+    
+    % Init iaas
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,start,[Apps,Computers])}]),
+   
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,stop,[])}]),
+
     % Do testing
 
+    
     % Stop testing
 
     % Clean up
-    rpc:call(node(),infrastructure,stop,[Computers,Apps,LibService]),
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,stop,[Apps,Computers])}]),
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,stop,[Computers])}]),
     
     init:stop(),
     ok.
