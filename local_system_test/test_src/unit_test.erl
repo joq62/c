@@ -60,7 +60,7 @@ do_unit_test([],_Pod,_PodId,Result)->
     Result;
 do_unit_test([Info|T],Pod,PodId,Acc) ->
     {{service2test,ServiceId},{src_dir,Source},
-     {test_module,TestModule},{preload,Applications}}=Info,
+     {test_module,TestModule},{preload,_Applications}}=Info,
     io:format(" ~n"),
     io:format("~p",[time()]),
     io:format(": Testing  ~p~n",[ServiceId]),
@@ -71,6 +71,7 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 			  {dir,Source}}
 			]),
     R=rpc:call(Pod,TestModule,test,[]),
+    io:format("Test result  ~p~n",[{R,ServiceId}]),
    % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
     container:delete(Pod,PodId,[ServiceId]),
     do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).
@@ -81,28 +82,28 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 %% Returns: non
 %% --------------------------------------------------------------------
 
-create_dir()->
+%create_dir()->
         % Use date and time 
-    timer:sleep(1200), % Secure that there is a new directory becaus o second resolution
-    {{Y,M,D},{H,Min,S}}={date(),time()},
-    Time=string:join([integer_to_list(H),integer_to_list(Min),integer_to_list(S)],":"),
-    Date=string:join([integer_to_list(Y),integer_to_list(M),integer_to_list(D)],"-"),
-    DirName=string:join([Time,Date,"test_dir"],"_"),
-    file:make_dir(DirName),
-    DirName.
+ %   timer:sleep(1200), % Secure that there is a new directory becaus o second resolution
+ %   {{Y,M,D},{H,Min,S}}={date(),time()},
+ %   Time=string:join([integer_to_list(H),integer_to_list(Min),integer_to_list(S)],":"),
+ %   Date=string:join([integer_to_list(Y),integer_to_list(M),integer_to_list(D)],"-"),
+ %   DirName=string:join([Time,Date,"test_dir"],"_"),
+ %   file:make_dir(DirName),
+ %   DirName.
 
 %----------------------------------------------
-start_service(Node,PodId,ListOfServices)->
-    case pod:create(Node,PodId) of
-	{error,Err}->
-	    io:format(" ~p~n~n",[{error,Err}]);
-	{ok,Pod}->
-	    ok=container:create(Pod,PodId,ListOfServices)
-    end.
+%start_service(Node,PodId,ListOfServices)->
+%    case pod:create(Node,PodId) of
+%	{error,Err}->
+%	    io:format(" ~p~n~n",[{error,Err}]);
+%	{ok,Pod}->
+%	    ok=container:create(Pod,PodId,ListOfServices)
+%    end.
     
-stop_service(Node,PodId,ListOfServices)->
-    {ok,Host}=rpc:call(Node,inet,gethostname,[]),
-    PodIdServer=PodId++"@"++Host,
-    Pod=list_to_atom(PodIdServer),
-    container:delete(Pod,PodId,ListOfServices),
-    {ok,stopped}=pod:delete(Node,PodId).
+%stop_service(Node,PodId,ListOfServices)->
+ %   {ok,Host}=rpc:call(Node,inet,gethostname,[]),
+  %  PodIdServer=PodId++"@"++Host,
+   % Pod=list_to_atom(PodIdServer),
+  %  container:delete(Pod,PodId,ListOfServices),
+  %  {ok,stopped}=pod:delete(Node,PodId).

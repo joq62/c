@@ -18,7 +18,6 @@
 %% Include files
 %% --------------------------------------------------------------------
 -define(NODES_CONFIG,"nodes.config").
--define(JOSCA,"josca").
 -define(POLL_INTERVAL,1*1000).
 
 %% --------------------------------------------------------------------
@@ -39,8 +38,9 @@
 
 
 %% user interface
--export([
-	 
+-export([add/4,change_status/4,
+	 delete/3,delete/4,
+	 all/0,check_all_status/0	 
 	]).
 
 %% intermodule 
@@ -74,6 +74,24 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%----------------------------------------------------------------------
+add(IpAddr,Port,Pod,Status)->
+    gen_server:call(?MODULE,{add,IpAddr,Port,Pod,Status},infinity).
+
+change_status(IpAddr,Port,Pod,NewStatus)->
+    gen_server:call(?MODULE,{change_status,IpAddr,Port,Pod,NewStatus},infinity).
+
+delete(IpAddr,Port,Pod)->
+        gen_server:call(?MODULE,{delete,IpAddr,Port,Pod},infinity).
+
+delete(IpAddr,Port,Pod,Status)->
+    gen_server:call(?MODULE,{delete,IpAddr,Port,Pod,Status},infinity).
+
+all()->
+    gen_server:call(?MODULE,{all},infinity).
+
+check_all_status()->
+    gen_server:call(?MODULE,{check_all_status},infinity).
+
 active_boards()->
     gen_server:call(?MODULE,{active_boards},infinity).
 inactive_boards()->
@@ -123,11 +141,9 @@ check_boards(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
-    % Initiate ets table based on configurration file
-    true=nodes_config:init(?NODES_CONFIG),
     % Connect to all nodes - ensure that they are in dist erlang
-    
-    spawn(fun()->do_poll(?POLL_INTERVAL) end),
+    iaas:init(),
+ %   spawn(fun()->do_poll(?POLL_INTERVAL) end),
   %  {{active,ActiveBoards},{inactive,InActive}}=iaas:active_boards(),
     io:format("Dbg ~p~n",[{?MODULE, application_started}]),
  %   {ok, #state{active=ActiveBoards,inactive=InActive}}.
@@ -143,7 +159,29 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({all}, _From, State) ->
+    Reply=rpc:call(node(),iaas,all,[]),
+    {reply, Reply, State};
 
+handle_call({check_all_status}, _From, State) ->
+    Reply=rpc:call(node(),iaas,check_all_status,[]),
+    {reply, Reply, State};
+
+handle_call({add,IpAddr,Port,PodC,Status}, _From, State) ->
+    Reply=rpc:call(node(),iaas,add,[IpAddr,Port,PodC,Status]),
+    {reply, Reply, State};
+
+handle_call({delete,IpAddr,Port,Pod}, _From, State) ->
+    Reply=rpc:call(node(),iaas,delete,[IpAddr,Port,Pod]),
+    {reply, Reply, State};
+
+handle_call({delete,IpAddr,Port,Pod,Status}, _From, State) ->
+    Reply=rpc:call(node(),iaas,delete,[IpAddr,Port,Pod,Status]),
+    {reply, Reply, State};
+
+handle_call({change_status,IpAddr,Port,PodC,NewStatus}, _From, State) ->
+    Reply=rpc:call(node(),iaas,add,[IpAddr,Port,PodC,NewStatus]),
+    {reply, Reply, State};
 
 %---------------------------------------------------------------
 
@@ -225,7 +263,7 @@ handle_call(Request, From, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_cast({check_boards,Interval}, State) ->
+handle_cast({check_boards,Interval},_State) ->
     % Ensure that newly started boards are connected and use ping to check if presents
     {ok,AllBoardIds}=rpc:call(node(),nodes_config,get_all_nodes,[],5000),
     PingResult=[{net_adm:ping(list_to_atom(BoardId)),BoardId}||BoardId<-AllBoardIds],

@@ -13,7 +13,13 @@
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
--define(NODES_ETS,node_config_ets).
+-define(IAAS_ETS,node_config_ets).
+-record(computer,{ip_addr,
+		  port,
+		  pod_coputer,
+		  pod_service,
+		  status=passive
+		  }]).
 %% External exports
 
 
