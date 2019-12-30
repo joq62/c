@@ -27,7 +27,7 @@ init()->
     
 
 add(IpAddr,Port,PodC,Status)->
-    ets:match_delete(?IAAS_ETS,{IpAddr,Port,PodC,Status}),
+    ets:match_delete(?IAAS_ETS,{IpAddr,Port,PodC,'_'}),
     ets:insert(?IAAS_ETS,{IpAddr,Port,PodC,Status}).
 
 change_status(IpAddr,Port,PodC,NewStatus)->
@@ -42,35 +42,66 @@ delete(IpAddr,Port,Pod,Status)->
 all()->
     ets:tab2list(?IAAS_ETS).
 
+active()->
+    L=all(),
+    [{IpAddr,Port,Pod}||{IpAddr,Port,Pod,Status}<-L,
+			Status=:=active].
+
+passive()->
+    L=all(),
+    [{IpAddr,Port,Pod}||{IpAddr,Port,Pod,Status}<-L,
+			Status=:=passive].
+status(IpAddr,Port,Pod)->
+    L=all(),
+    R=[Status||{IpAddr2,Port2,Pod2,Status}<-L,
+	     {IpAddr2,Port2,Pod2}=:={IpAddr,Port,Pod}],
+    case R of
+	[]->
+	    {error,[undef,IpAddr,Port,Pod]};
+	[Status] ->
+	    Status
+    end.
+    
 check_all_status()->
     L=all(),
     Result=case L of
 	       []->
 		   {error,no_computers_allocated};
 	       L->
-		   do_ping(L,[])		   
+		   AvaliableComputers=do_ping(L,[]),
+		   change_status(AvaliableComputers),
+		   AvaliableComputers
 	   end,
     Result.
+
+change_status([])->
+    ok;
+change_status([{ok,{IpAddr,Port,Pod},_Msg}|T])->
+    change_status(IpAddr,Port,Pod,active),
+    change_status(T);
+change_status([{error,{IpAddr,Port,Pod},_Msg}|T])->
+    change_status(IpAddr,Port,Pod,passive),
+    change_status(T).
 
 do_ping([],PingR)->
     PingR;
 do_ping([{IpAddr,Port,Pod,_Status}|T],Acc) ->
     case tcp_client:connect(IpAddr,Port) of
 	{error,Err}->
-	    R={error,Err};
+	    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,Err]};
 	PidSession->
 	   % doesnt work!   rpc:call(node(),tcp_client,session_call,[PidSession,{net_adm,ping,[Pod]}],5000),
 	  %  tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),
 	    tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),
 	    case tcp_client:get_msg(PidSession,1000) of
 		pong->
-		    R={ok,[IpAddr,Port,Pod]};
+		    R={ok,{IpAddr,Port,Pod},[]};
 		pang->
-		    R={error,[pang,IpAddr,Port,Pod,?MODULE,?LINE]};
+		    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,pang]};
 		{badrpc,Err}->
-		    R={badrpc,[IpAddr,Port,Pod,Err,?MODULE,?LINE]};
+		    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,badrpc,Err]};
 		Err->
-		    R={error,[Err,IpAddr,Port,Pod,?MODULE,?LINE]}
+		    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,Err]}
 	    end,
 	    tcp_client:disconnect(PidSession)
       end,

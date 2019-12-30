@@ -25,7 +25,7 @@ test()->
     TestList=[init_test,start_container_1_test,start_container_2_test,
 	      adder_1_test,adder_2_test,
 	      stop_container_1_test,stop_container_2_test,
-	      get_node_id_test,
+	      misc_lib_1_test,misc_lib_2_test,
 	      init_tcp_test,tcp_1_test,tcp_2_test,
 	      end_tcp_test],
     TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
@@ -55,6 +55,19 @@ init_test()->
     pod:delete(node(),"pod_adder_2"),
     ok.
     
+
+%------------------ misc_lib -----------------------------------
+misc_lib_1_test()->
+    ok.
+
+misc_lib_2_test()->
+    {ok,Host}=inet:gethostname(),
+    PodIdServer=?SERVER_ID++"@"++Host,
+    PodServer=list_to_atom(PodIdServer),
+    PodServer=misc_lib:get_node_by_id(?SERVER_ID), 
+    ok.
+
+
 %------------------ ceate and delete Pods and containers -------
 %create_container(Pod,PodId,[{{service,ServiceId},{Type,Source}}
 
@@ -98,12 +111,7 @@ stop_container_2_test()->
     ok.
 
 %------------------------------------------------------------
-get_node_id_test()->
-    {ok,Host}=inet:gethostname(),
-    PodIdServer=?SERVER_ID++"@"++Host,
-    PodServer=list_to_atom(PodIdServer),
-    PodServer=misc_lib:get_node_by_id(?SERVER_ID), 
-    ok.
+
 
 
 

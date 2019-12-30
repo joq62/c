@@ -84,32 +84,49 @@ init_tcp_test()->
     tcp_client:session_call(P3,{erlang,date,[]}),
     D=tcp_client:get_msg(P3,1000),
     tcp_client:disconnect(P3),
-
-   % D=rpc:call(node(),tcp_client,call,[{"localhost",42001},Computer_1,{erlang,date,[]}]),
-   % D=rpc:call(node(),tcp_client,call,[{"localhost",42002},Computer_2,{erlang,date,[]}]),
-   % D=rpc:call(node(),tcp_client,call,[{"localhost",42003},Computer_3,{erlang,date,[]}]),
-
     ok.
 
 start_iaas_test()->
-%    iaas:init(),
+
     {error,no_computers_allocated}=iaas_service:check_all_status(),
+
     iaas_service:add("localhost",42001,misc_lib:get_node_by_id("pod_computer_1"),active),
-    [{ok,["localhost",42001,pod_computer_1@asus]}
+    [{ok,{"localhost",42001,pod_computer_1@asus},[]}
     ]=iaas_service:check_all_status(),
     
+    %----
+    [{"localhost",42001,pod_computer_1@asus}]=iaas_service:active(),
+    []=iaas_service:passive(),
+    active=iaas_service:status("localhost",42001,misc_lib:get_node_by_id("pod_computer_1")),
+    {IpAddr,Port,Pod}={"glurk",42001,misc_lib:get_node_by_id("pod_computer_1")},
+    {error,[undef,IpAddr,Port,Pod]
+    }=iaas_service:status("glurk",42001,misc_lib:get_node_by_id("pod_computer_1")),
+
     D=date(),
     D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}],2000),
     iaas_service:add("localhost",42002,misc_lib:get_node_by_id("pod_computer_2"),active),
     iaas_service:add("localhost",42003,misc_lib:get_node_by_id("pod_computer_3"),active),
-    [{ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {ok,["localhost",42001,pod_computer_1@asus]}]=iaas_service:check_all_status(),
+    L=iaas_service:check_all_status(),
+    TestPattern=[{ok,{"localhost",42003,pod_computer_3@asus},[]},
+		 {ok,{"localhost",42002,pod_computer_2@asus},[]},
+		 {ok,{"localhost",42001,pod_computer_1@asus},[]}
+		],
+    TestL=[R||{R,_,_}<-L,R==ok],
+    ok=case lists:flatlength(TestL) of
+	   3->
+	       ok;
+	   _->
+	       {"Result of call",L,"---------------","test pattern",TestPattern}
+       end,
 
-    [{ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {ok,["localhost",42001,pod_computer_1@asus]}]=iaas_service:check_all_status(),
-
+    TestL2=[R2||{_,{_,R2,_},_}<-L,
+		(R2=:=42003)or(R2=:=42002)or(R2=:=42001)],
+    ok=case lists:flatlength(TestL2) of
+	   3->
+	       ok;
+	   _->
+	       {"Result of call",L,"---------------","test pattern",TestPattern}
+       end,	
     ok.
     
 node_down_test()->
@@ -118,12 +135,35 @@ node_down_test()->
     Computer_1=misc_lib:get_node_by_id("pod_computer_1"),
     container:delete(Computer_1,"pod_computer_1",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_computer_1"),
-    [{ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {error,[{error,[econnrefused]},"localhost",42001,pod_computer_1@asus,iaas,_Line]}
-    ]=iaas_service:check_all_status(),
-       
+    TestPattern=[{ok,{"localhost",42003,pod_computer_3@asus},[]},
+		 {ok,{"localhost",42002,pod_computer_2@asus},[]},
+		 {error,{"localhost",42001,pod_computer_1@asus},[iaas,73,{error,[econnrefused]}]}],
+    
+    L=iaas_service:check_all_status(),
+    TestL=[R||{R,_,_}<-L,R==ok],
+    ok=case lists:flatlength(TestL) of
+	   2->
+	       ok;
+	   _->
+	       {"Result of call",L,"---------------","test pattern",TestPattern}
+       end,
+    
+    %-----------
+    [{"localhost",42001,pod_computer_1@asus}]=iaas_service:passive(),
+
+    TestPattern2=[{"localhost",42002,pod_computer_2@asus},
+		  {"localhost",42003,pod_computer_3@asus}],
+    L2=iaas_service:active(),    
+    TestL2=[R2||{_,R2,_}<-L2,
+		(R2=:=42003)or(R2=:=42002)],
+    ok=case lists:flatlength(TestL2) of
+	   2->
+	       ok;
+	   _->
+	       {"Result of call",L2,"---------------","test pattern",TestPattern2}
+       end,
     ok.
+    
 
 node_up_again_test()->
     {ok,Computer_1}=pod:create(node(),"pod_computer_1"),
@@ -135,23 +175,50 @@ node_up_again_test()->
     D=date(),
     D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}]),
     
-    [{ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {ok,["localhost",42001,pod_computer_1@asus]}]=iaas_service:check_all_status(),
+    TestPattern=[{ok,{"localhost",42003,pod_computer_3@asus},[]},
+		 {ok,{"localhost",42002,pod_computer_2@asus},[]},
+		 {ok,{"localhost",42001,pod_computer_1@asus},[]}],
+
+    L=iaas_service:check_all_status(),
+    TestL=[R||{R,_,_}<-L,R==ok],
+    ok=case lists:flatlength(TestL) of
+	  3->
+	       ok;
+	   _->
+	       {"Result of call",L,"---------------","test pattern",TestPattern}
+       end,
     
     ok.
 missing_node_test()->
     iaas_service:add("localhost",5522,node(),active),
-    [{error,[{error,[econnrefused]},"localhost",5522,pod_test_1@asus,iaas,_Line]},
-     {ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {ok,["localhost",42001,pod_computer_1@asus]}
-    ]=iaas_service:check_all_status(),
+    TestPattern1=[{error,{"localhost",5522,pod_test_1@asus},[iaas,xx,{error,[econnrefused]}]},
+		  {ok,{"localhost",42003,pod_computer_3@asus},[]},
+		  {ok,{"localhost",42002,pod_computer_2@asus},[]},
+		  {ok,{"localhost",42001,pod_computer_1@asus},[]}],
+
+    
+
+    L1=iaas_service:check_all_status(),
+    TestL1=[R||{R,_,_}<-L1,R==ok],
+    ok=case lists:flatlength(TestL1) of
+	   3->
+	       ok;
+	   _->
+	       {"Result of call",L1,"---------------","test pattern",TestPattern1}
+       end,
 
     iaas_service:delete("localhost",5522,node()),
-    [{ok,["localhost",42003,pod_computer_3@asus]},
-     {ok,["localhost",42002,pod_computer_2@asus]},
-     {ok,["localhost",42001,pod_computer_1@asus]}]=iaas_service:check_all_status(),
+    TestPattern2=[{ok,{"localhost",42003,pod_computer_3@asus},[]},
+		  {ok,{"localhost",42002,pod_computer_2@asus},[]},
+		  {ok,{"localhost",42001,pod_computer_1@asus},[]}],
+    L2=iaas_service:check_all_status(),
+    TestL2=[R||{R,_,_}<-L2,R==ok],
+    ok=case lists:flatlength(TestL2) of
+	   3->
+	       ok;
+	   _->
+	       {"Result of call",L2,"---------------","test pattern",TestPattern2}
+       end,
     ok.
     
 

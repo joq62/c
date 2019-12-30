@@ -38,7 +38,9 @@
 
 
 %% user interface
--export([add/4,change_status/4,
+-export([active/0,passive/0,
+	 status/3,
+	 add/4,change_status/4,
 	 delete/3,delete/4,
 	 all/0,check_all_status/0	 
 	]).
@@ -74,6 +76,13 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%----------------------------------------------------------------------
+active()->
+    gen_server:call(?MODULE,{active},infinity).
+passive()->
+    gen_server:call(?MODULE,{passive},infinity).
+status(IpAddr,Port,Pod)->
+        gen_server:call(?MODULE,{status,IpAddr,Port,Pod},infinity).
+
 add(IpAddr,Port,Pod,Status)->
     gen_server:call(?MODULE,{add,IpAddr,Port,Pod,Status},infinity).
 
@@ -159,6 +168,17 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
+handle_call({active}, _From, State) ->
+    Reply=rpc:call(node(),iaas,active,[]),
+    {reply, Reply, State};
+handle_call({passive}, _From, State) ->
+    Reply=rpc:call(node(),iaas,passive,[]),
+    {reply, Reply, State};
+
+handle_call({status,IpAddr,Port,Pod}, _From, State) ->
+    Reply=rpc:call(node(),iaas,status,[IpAddr,Port,Pod]),
+    {reply, Reply, State};
+
 handle_call({all}, _From, State) ->
     Reply=rpc:call(node(),iaas,all,[]),
     {reply, Reply, State};
