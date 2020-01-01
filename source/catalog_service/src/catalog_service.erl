@@ -105,7 +105,7 @@ heart_beat()->
 %% --------------------------------------------------------------------
 init([]) ->
     catalog_lib:init(),
-%    spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
+    spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
 
 
     io:format("Started Service  ~p~n",[{?MODULE}]),

@@ -1,10 +1,12 @@
-{test_files,[{infrastructure,stop},
-	     {infrastructure,start},
-	     {loader,start},
-	     {init_iaas,start},
-	     {dns,start},
-	     {infrastructure,stop}
-	    ]}.
+{test_files,[{infrastructure,stop,[Computers]},
+	      {infrastructure,start,[Computers,LibService]},
+	      {test_loader,start,[Apps,Computers,LibService]},
+	      {init_iaas,start,[Apps,Computers]},
+	      {init_iaas,stop,[]},
+	      {test_loader,stop,[Apps,Computers]},
+	      {infrastructure,stop,[Computers]}
+	    ]
+ }.
 
 {apps,[{{service,"dns_service"},{dir,"/home/pi/erlang/c/source"},
 	{computer,"master_computer"}},

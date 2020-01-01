@@ -25,8 +25,9 @@
 %% External exports
 
 
--export([start_seq_server/1,
-	 start_par_server/1
+-export([start_seq_server/2,
+	 start_par_server/2,
+	 myip/1,terminate/1
 	]).
 
 
@@ -44,22 +45,65 @@
 %% Description: fun x skeleton 
 %% Returns:ok|error
 %% ------------------------------------------------------------------
-start_seq_server(Port)->
-    Pid=spawn(fun()->seq_server(Port) end),
-    Pid.
+terminate(ServerPid)->
+    ClientPid=self(),
+    ServerPid!{ClientPid,terminate},
+    Result=receive
+	       {ServerPid,{terminate_ack}}->
+		   ok;
+	       Err->
+		   {error,[unamatched_signal,Err,?MODULE,?LINE]}
+	   after ?TIMEOUT_TCPSERVER->
+		   {error,[timeout,terminate,?MODULE,?LINE]}
+	   end,	
+    Result. 
+
+myip(ServerPid)->
+    ClientPid=self(),
+    ServerPid!{ClientPid,myip},
+    Result=receive
+	       {ServerPid,{myip_ack,IpAddr,Port}}->
+		   {ok,IpAddr,Port};
+	       Err->
+		   {error,[unamatched_signal,Err,?MODULE,?LINE]}
+	   after ?TIMEOUT_TCPSERVER->
+		   {error,[timeout,myip,?MODULE,?LINE]}
+	   end,	
+    Result.
+
+ctrl_loop(IpAddr,Port)->
+    receive
+	{Pid,myip} ->
+	    Pid!{self(),{myip_ack,IpAddr,Port}},
+	    ctrl_loop(IpAddr,Port);
+	{Pid,terminate}->
+	    Pid!{self(),{terminate_ack}}
+    end.
+
+start_seq_server(IpAddr,Port)->
+    ClientPid=self(),
+    Pid=spawn(fun()->seq_server(IpAddr,Port,ClientPid) end),
+    Result=receive
+	       {Pid,{start_seq_server_ack,ok}}->
+		   {ok,Pid};
+	       {Pid,{start_seq_server_ack,error,Err}}->
+		   {error,[failed_to_start,start_seq_server,Err,?MODULE,?LINE]}
+	   after ?TIMEOUT_TCPSERVER->
+		   {error,[timeout,start_seq_server,?MODULE,?LINE]}
+	   end,	
+    Result.
 		  
-seq_server(Port)->
+seq_server(IpAddr,Port,ClientPid)->
    Result = case gen_tcp:listen(Port,?SERVER_SETUP) of  
-	       {ok, LSock}->
+		{ok, LSock}->
+		    ClientPid!{self(),{start_seq_server_ack,ok}},
 		    spawn(fun()->seq_loop(LSock) end),
-		    receive
-			{_Pid,terminate}->
-			    ok
-		    end;
+		    ctrl_loop(IpAddr,Port);
 	       Err ->
-		   {error,Err}
+		    ClientPid!{self(),{start_seq_server_ack,error,Err}}
 	    end,
     Result.
+
 seq_loop(LSock)->
     {ok,Socket}=gen_tcp:accept(LSock),
     loop(Socket),
@@ -70,25 +114,33 @@ seq_loop(LSock)->
 %% Description: fun x skeleton 
 %% Returns:ok|error
 %% ------------------------------------------------------------------
-start_par_server(Port)->
-    Pid=spawn(fun()->par_server(Port) end),
-    Pid.
-par_server(Port)->
-    Result = case gen_tcp:listen(Port,?SERVER_SETUP) of  
-		 {ok, LSock}->
-		     spawn(fun()-> par_connect(LSock) end),
-		     receive
-			 {_Pid,terminate}->
-			     ok
-		     end;
-		 Err ->
-		     Err
-	     end,
+start_par_server(IpAddr,Port)->
+    ClientPid=self(),
+    Pid=spawn(fun()->par_server(IpAddr,Port,ClientPid) end),
+    Result=receive
+	       {Pid,{start_par_server_ack,ok}}->
+		   {ok,Pid};
+	       {Pid,{start_par_server_ack,error,Err}}->
+		   {error,[failed_to_start,start_par_server,Err,?MODULE,?LINE]}
+	   after ?TIMEOUT_TCPSERVER->
+		   {error,[timeout,start_seq_server,?MODULE,?LINE]}
+	   end,	
+    Result.
+		  
+par_server(IpAddr,Port,ClientPid)->
+   Result = case gen_tcp:listen(Port,?SERVER_SETUP) of  
+		{ok, LSock}->
+		    ClientPid!{self(),{start_par_server_ack,ok}},
+		    spawn(fun()->par_loop(LSock) end),
+		    ctrl_loop(IpAddr,Port);
+	       Err ->
+		    ClientPid!{self(),{start_par_server_ack,error,Err}}
+	    end,
     Result.
 
-par_connect(LSock)->
+par_loop(LSock)->
     {ok,Socket}=gen_tcp:accept(LSock),
-    spawn(fun()-> par_connect(LSock) end),
+    spawn(fun()-> par_loop(LSock) end),
     loop(Socket).
 
 

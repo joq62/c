@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(test_iaas). 
+-module(dns). 
   
 %% --------------------------------------------------------------------
 %% Include files
@@ -14,7 +14,12 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--compile(export_all).
+-export([start/0,
+
+	 stop/0
+	]).
+
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -27,15 +32,17 @@
 %
 % AppList=[{{service,"iaas_service"},{dir,"/home/pi/erlang/c/source"},{computer,"master_computer"}}]
 
-start(Apps,Computers)->
-    %% Get iaas computer and address
-  %  glurk=Apps,
-    [IaasComputerId]=[ComputerId||{{service,"iaas_service"},{dir,_},{computer,ComputerId}}<-Apps],
-    {IaasComputerId,IaasComputer,IaasIpAddr,IaasPort}=lists:keyfind(IaasComputerId,1,Computers),
+start()->
+    io:format(" ~n"),
+    io:format("~p",[time()]),
+    io:format(" Test started :~p~n",[{?MODULE,start}]),
+    io:format(" ~n"),
     
-    %% add all computers
-    R=add_check_status_computers(IaasComputerId,IaasComputer,IaasIpAddr,IaasPort,Computers),
-    io:format("~p~n",[R]),
+    % get dns ip addr
+    {IpAddr,Port}=lib_service:dns_address(),
+    % R=io:format("~p~n",[lib_service:dns_address()]),
+    R=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{dns_service,ping,[]}]),
+ %   io:format("~p~n",[R]),
     io:format(" ~n"),
     io:format("~p",[time()]),
     io:format("  OK :~p~n",[{?MODULE,start}]),
@@ -52,9 +59,3 @@ stop()->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-add_check_status_computers(_IaasComputerId,IaasComputer,IaasIpAddr,IaasPort,Computers)->
-    [rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},IaasComputer,{iaas_service,add,[IpAddr,Port,Computer,passive]}])
-     ||{_ComputerId,Computer,IpAddr,Port}<-Computers],
-    rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},IaasComputer,{iaas_service,check_all_status,[]}]).
-
-%**************************************************************

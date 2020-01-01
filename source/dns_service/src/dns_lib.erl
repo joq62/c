@@ -17,10 +17,15 @@
 -define(DNS_ETS,dns_ets).
 -define(EXPIRED_TIME,1).
 %% External exports
--compile(export_all).
+-export([init/0,add/4,delete/4,delete/5,
+	 clear/0,get/1,
+	 delete_expired/0,expired/0,
+	 all/0
+	]).
 
-%-export([load_start_node/3,stop_unload_node/3
-%	]).
+%-compile(export_all).
+
+
 
 
 %% ====================================================================

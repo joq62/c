@@ -14,7 +14,12 @@
 %% --------------------------------------------------------------------
 -define(SERVER_ID,"test_tcp_server").
 %% External exports
--compile(export_all).
+-export([test/0,
+	 init_test/0,start_catalog_test/0,
+	 catalog_1_test/0,catalog_2_test/0,  
+	 stop_catalog_test/0]).
+
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 

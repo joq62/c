@@ -35,8 +35,7 @@ start()->
     io:format("~p ",[time()]),  
     io:format(">>>>>>>>  Create test nodes = ~p~n",[I]),
     [pod:delete(node(),PodId)||PodId<-I],
-    A=[{PodId,pod:create(node(),PodId)}||PodId<-I],
-    PodsInfo=[{PodId,Pod}||{PodId,{ok,Pod}}<-A],
+   
     ok=ping_test(),    
     
     io:format("~p ",[time()]),

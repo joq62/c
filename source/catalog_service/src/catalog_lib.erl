@@ -17,10 +17,15 @@
 -define(ETS,catalog_ets).
 -define(EXPIRED_TIME,1).
 %% External exports
--compile(export_all).
+-export([init/0,add/1,
+	 clear/0,delete/2,delete/5,
+	 get/2,
+	 all/0
+	]).
 
-%-export([load_start_node/3,stop_unload_node/3
-%	]).
+%-compile(export_all).
+
+
 
 
 %% ====================================================================

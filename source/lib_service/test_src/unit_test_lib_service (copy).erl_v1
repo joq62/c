@@ -14,16 +14,18 @@
 %% --------------------------------------------------------------------
 -define(SERVER_ID,"test_tcp_server").
 %% External exports
-%-export([test/0,init_test/0,start_container_1_test/0,start_container_2_test/0,
-%	 adder_1_test/0,adder_2_test/0,
-%	 stop_container_1_test/0,stop_container_2_test/0,
-%	 misc_lib_1_test/0,misc_lib_2_test/0,
-%	 init_tcp_test/0,tcp_1_test/0,tcp_2_test/0,
-%	 tcp_3_test/0,
-%	 dns_address_test/0,
-%	 end_tcp_test/0]).
+-export([test/0,
+	 init_test/0,
+	 start_container_1_test/0,start_container_2_test/0,
+	 adder_1_test/0,adder_2_test/0,
+	 stop_container_1_test/0,stop_container_2_test/0,
+	 misc_lib_1_test/0,misc_lib_2_test/0,
+	 init_tcp_test/0,tcp_1_test/0,tcp_2_test/0,
+	 tcp_3_test/0,
+	 dns_address_test/0,
+	 end_tcp_test/0]).
 
--compile(export_all).
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -31,16 +33,13 @@
 %% External functions
 %% ====================================================================
 test()->
-    TestList=[init_test,
-	      start_container_1_test,start_container_2_test,
+    TestList=[init_test,start_container_1_test,start_container_2_test,
 	      adder_1_test,adder_2_test,
 	      stop_container_1_test,stop_container_2_test,
 	      misc_lib_1_test,misc_lib_2_test,
-	      init_tcp_test,
-	      tcp_seq_server_start_stop,
-	      tcp_par_server_start_stop,
-	      tcp_2_test,
+	      init_tcp_test,tcp_1_test,tcp_2_test,
 	      tcp_3_test,
+	      dns_address_test,
 	      end_tcp_test],
     TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
     
@@ -147,89 +146,40 @@ init_tcp_test()->
 			]),    
     ok.
 
-tcp_seq_server_start_stop()->
+tcp_1_test()->
     PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    {ok,ServerSeq}=rpc:call(PodServer,tcp_server,start_seq_server,["localhost",52000]),
-    
-    %Check my ip
-    {ok,"localhost",52000}=rpc:call(PodServer,tcp_server,myip,[ServerSeq],1000),
-    % Normal case seq tcp:call(
+    PodClient=misc_lib:get_node_by_id("pod_lib_2"),
+    _Pid=rpc:call(PodServer,tcp_server,start_seq_server,[42000]),
     D=date(),
-    D=rpc:call(node(),tcp_client,call,[{"localhost",52000},{erlang,date,[]}],2000),
+    Result=rpc:call(PodClient,tcp_client,call,[{"localhost",42000},PodServer,{erlang,date,[]}]),
+    D=Result,
+    D=rpc:call(PodClient,tcp_client,call,[{"localhost",42000},{erlang,date,[]}]),
+    D=tcp_client:call({"localhost",42000},{erlang,date,[]}),
     
-    % Normal case seq tcp:conne ..
-    {ok,ServerSeq2}=tcp_client:connect("localhost",52000),
-    {ok,ServerSeq3}=tcp_client:connect("localhost",52000),
-    tcp_client:session_call(ServerSeq2,{erlang,date,[]}),
-    tcp_client:session_call(ServerSeq3,{erlang,date,[]}),
-    D=tcp_client:get_msg(ServerSeq2,1000),
-    {error,[get_msg_timeout,tcp_client,_Line]}=tcp_client:get_msg(ServerSeq3,1000),
-    
-    tcp_client:disconnect(ServerSeq2),
-    tcp_client:disconnect(ServerSeq3),
-
-    ok=rpc:call(PodServer,tcp_server,terminate,[ServerSeq],1000),
-    {error,[timeout,"localhost",52000,tcp_client,_]}=tcp_client:connect("localhost",52000),
-    {error,econnrefused}=tcp_client:call({"localhost",52000},{erlang,date,[]}),
     ok.
-% funkar hit 
-tcp_par_server_start_stop()->
-    PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    {ok,ServerPar}=rpc:call(PodServer,tcp_server,start_par_server,["localhost",52001]),
-    
-    %Check my ip
-   {ok,"localhost",52001}=rpc:call(PodServer,tcp_server,myip,[ServerPar],1000),
-    % Normal case seq tcp:call(
-    D=date(),
-    D=rpc:call(node(),tcp_client,call,[{"localhost",52001},{erlang,date,[]}],2000),
-    
-    % Normal case seq tcp:conne ..
-    {ok,Server2}=tcp_client:connect("localhost",52001),
-    {ok,Server3}=tcp_client:connect("localhost",52001),
-    tcp_client:session_call(Server2,{erlang,date,[]}),
-    tcp_client:session_call(Server3,{erlang,date,[]}),
-    D=tcp_client:get_msg(Server2,1000),
-    D=tcp_client:get_msg(Server3,1000),
-    
-    tcp_client:disconnect(Server2),
-    tcp_client:disconnect(Server3),
-    ok=rpc:call(PodServer,tcp_server,terminate,[ServerPar],1000),
-  
-    {error,econnrefused}=tcp_client:call({"localhost",52001},{erlang,date,[]}),
-    {error,[timeout,"localhost",52001,tcp_client,_]}=tcp_client:connect("localhost",52001),
-    ok.
-
 
 tcp_2_test()->
     PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    {ok,_Server}=rpc:call(PodServer,tcp_server,start_par_server,["localhost",53000]),
+    _PodClient=misc_lib:get_node_by_id("pod_lib_2"),
+    _Pid=rpc:call(PodServer,tcp_server,start_seq_server,[42000]),
 
-    {ok,Session}=tcp_client:connect("localhost",53000),
-    
-   glurk=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
- % tcp_client:session_call(PidSession,{erlang,date,[]}),
-    loop_send(2,Session),
-    _R1=loop_get(2,Session,[]),
-    loop_send2(2,Session,PodServer),
-    _R2=loop_get(2,Session,[]),
-    tcp_client:disconnect(Session),
+    {ok,PidSession}=tcp_client:connect("localhost",42000),
+   % tcp_client:session_call(PidSession,{erlang,date,[]}),
+    loop_send(1000,PidSession),
+    _R1=loop_get(1000,PidSession,[]),
+    loop_send2(1000,PidSession,PodServer),
+    _R2=loop_get(1000,PidSession,[]),
+    tcp_client:disconnect(PidSession),
     ok.
 
 tcp_3_test()->
-    PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    {ok,_Server}=rpc:call(PodServer,tcp_server,start_seq_server,["localhost",54000]),
-    do_call(2,"localhost",54000),
-    %Check dns_address
-    
+    {error,_}=tcp_client:connect("localhost",12345),
     ok.
     
-do_call(0,_,_)->
-    ok;
-do_call(N,IpAddr,Port) ->
-    D=date(),
-    D=tcp_client:call({IpAddr,Port},{erlang,date,[]}),
-    do_call(N-1,IpAddr,Port).
-
+dns_address_test()->
+    {"localhost",42000}=lib_service:dns_address(),
+    ok.
+    
 loop_send2(0,_,_)->
     ok;
 loop_send2(N,PidSession,Pod) ->
@@ -243,7 +193,7 @@ loop_send(N,PidSession) ->
 loop_get(0,_PidSession,Result)->
     Result;
 loop_get(N,PidSession,Acc) ->
-    loop_get(N-1,PidSession,[{N,tcp_client:get_msg(PidSession,100)}|Acc]).
+    loop_get(N-1,PidSession,[{N,tcp_client:get_msg(PidSession,2000)}|Acc]).
     
 end_tcp_test()->
     container:delete('pod_lib_1@asus.com',"pod_adder_1",["lib_service"]),

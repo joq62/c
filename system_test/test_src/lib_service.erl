@@ -24,13 +24,18 @@
 %% Definitions 
 -define(HB_INTERVAL,1*20*1000).
 -define(NODE_CONFIG,"node.config").
+
+-define(DNS_PUBLIC,{"joqhome.dynamic-dns.net",42000}).
+-define(DNS_PRIVATE,{"192.168.0.100",42000}).
+-define(DNS_LOCALHOST,{"localhost",42000}).
 %% --------------------------------------------------------------------
 
 
 
 
 -export([start_tcp_server/2,stop_tcp_server/1,
-	 ping/0
+	 ping/0,
+	 dns_address/0
 	]).
 
 -export([start/0,
@@ -58,6 +63,7 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
+
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
 
@@ -224,4 +230,29 @@ h_beat(Interval)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-
+dns_address()->
+    {IpAddrPublic,PortPublic}=?DNS_PUBLIC,
+    Reply=case tcp_client:connect(IpAddrPublic,PortPublic) of
+	      {error,_} ->
+		  {IpAddrPrivate,PortPrivate}=?DNS_PRIVATE,
+		  case tcp_client:connect(IpAddrPrivate,PortPrivate) of
+		      {error,_}->
+			  {IpAddrLocal,PortLocal}=?DNS_LOCALHOST,
+			  case tcp_client:connect(IpAddrLocal,PortLocal) of
+			      {error,_}->
+				  {error,[eexists,dns_service,?MODULE,?LINE]};
+			      {ok,PidSession}->
+				  tcp_client:disconnect(PidSession),
+				  ?DNS_LOCALHOST
+			  end;
+		      {ok,PidSession}->
+			  tcp_client:disconnect(PidSession),
+			  ?DNS_PRIVATE
+		  end;
+	      {badrpc,Err}->
+		  {error,[badrpc,?MODULE,?LINE,Err]};
+	      {ok,PidSession}->
+		  tcp_client:disconnect(PidSession),
+		  ?DNS_PUBLIC
+	  end,
+    Reply.

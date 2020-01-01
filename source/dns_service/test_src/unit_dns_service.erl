@@ -12,9 +12,15 @@
 % -include_lib("eunit/include/eunit.hrl").
 
 %% --------------------------------------------------------------------
--define(SERVER_ID,"test_tcp_server").
+
 %% External exports
--compile(export_all).
+-export([test/0,
+	 init_test/0,start_dns_test/0,
+	 dns_1_test/0,dns_2_test/0,
+	 stop_dns_test/0
+	]).
+	 
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 

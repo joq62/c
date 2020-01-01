@@ -12,9 +12,15 @@
 % -include_lib("eunit/include/eunit.hrl").
 
 %% --------------------------------------------------------------------
--define(SERVER_ID,"test_tcp_server").
+
 %% External exports
--compile(export_all).
+-export([test/0,
+	init_test/0,init_tcp_test/0,
+	start_iaas_test/0,node_down_test/0,node_up_again_test/0,
+	missing_node_test/0,
+	end_tcp_test/0]).
+     
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -72,15 +78,15 @@ init_tcp_test()->
     rpc:call(Computer_3,tcp_server,start_seq_server,[42003]),
     %% Check if running
     D=date(),
-    P1=tcp_client:connect("localhost",42001),
+    {ok,P1}=tcp_client:connect("localhost",42001),
     tcp_client:session_call(P1,Computer_1,{erlang,date,[]}),
     D=tcp_client:get_msg(P1,1000),
     tcp_client:disconnect(P1),
-    P2=tcp_client:connect("localhost",42002),
+    {ok,P2}=tcp_client:connect("localhost",42002),
     tcp_client:session_call(P2,{erlang,date,[]}),
     D=tcp_client:get_msg(P2,1000),
     tcp_client:disconnect(P2),
-    P3=tcp_client:connect("localhost",42003),
+    {ok,P3}=tcp_client:connect("localhost",42003),
     tcp_client:session_call(P3,{erlang,date,[]}),
     D=tcp_client:get_msg(P3,1000),
     tcp_client:disconnect(P3),

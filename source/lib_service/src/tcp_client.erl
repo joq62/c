@@ -14,7 +14,8 @@
 
 %% --------------------------------------------------------------------
 -define (CLIENT_SETUP,[binary, {packet,4}]).
--define (TIMEOUT_TCPCLIENT, 120*1000).
+-define (TIMEOUT_TCPCLIENT,10*1000).
+-define (TIMEOUT_CONNECT,5*1000).
 
 -define(KEY_M_OS_CMD,89181808).
 -define(KEY_F_OS_CMD,"95594968").
@@ -35,9 +36,17 @@
 %% External functions
 %% ====================================================================
 connect(IpAddr,Port)->
-    Self=self(),
-    Pid=spawn(fun()-> session(IpAddr,Port,Self) end),
-    Pid.
+    ClientPid=self(),
+    Pid=spawn(fun()-> session(IpAddr,Port,ClientPid) end),
+    Result=receive
+	       {Pid,ok}->
+		   {ok,Pid};
+	       {Pid,{error,[Err]}}->
+		   {error,[Err]}
+	   after ?TIMEOUT_CONNECT->
+		   {error,[timeout,IpAddr,Port,?MODULE,?LINE]}
+	   end,
+    Result.
 
 session_call(Pid,{M,F,A})->
     S=self(),
@@ -64,36 +73,37 @@ get_msg(Pid,Timeout)->
 	   end,
     Result.
 
-session(IpAddr,Port,Parent)->
+session(IpAddr,Port,ClientPid)->
     case gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP) of
 	 {ok,Socket}->
-	    session_loop(Socket,Parent);
+	    ClientPid!{self(),ok},
+	    session_loop(Socket,ClientPid);
 	{error,Err}->
-	    Parent!{self(),{error,[Err]}}
+	    ClientPid!{self(),{error,[Err,IpAddr,Port]}}
     end.
 
-session_loop(Socket,Parent)->
+session_loop(Socket,ClientPid)->
     receive
 	{tcp,Socket,Bin}->
 	    case binary_to_term(Bin) of
 		{?KEY_MSG,R}->
-		    Parent!{self(),{msg,R}};
+		    ClientPid!{self(),{msg,R}};
 		Err->
-		    Parent!{self(),{error,[Err]}}
+		    ClientPid!{self(),{error,[Err]}}
 	    end,
-	    session_loop(Socket,Parent);
+	    session_loop(Socket,ClientPid);
 	{tcp_closed, Socket}->
-	    Parent!{self(),{error,[tcp_closed]}};
-	{Parent,{call,{M,F,A}}}->
+	    ClientPid!{self(),{error,[tcp_closed]}};
+	{ClientPid,{call,{M,F,A}}}->
 	    ok=send2(Socket,{M,F,A}),
-	    session_loop(Socket,Parent);
-	{Parent,{Pod,call,{M,F,A}}}->
+	    session_loop(Socket,ClientPid);
+	{ClientPid,{Pod,call,{M,F,A}}}->
 	    ok=send2(Socket,Pod,{M,F,A}),
-	    session_loop(Socket,Parent);
-	{Parent,{disconnect}}->
+	    session_loop(Socket,ClientPid);
+	{ClientPid,{disconnect}}->
 	    gen_tcp:close(Socket)
     after ?TIMEOUT_TCPCLIENT ->
-	    Parent!{self(),{error,[?MODULE,?LINE,tcp_timeout]}}
+	    ClientPid!{self(),{error,[?MODULE,?LINE,tcp_timeout]}}
     end.
     
 
@@ -155,7 +165,7 @@ send(IpAddr,Port,Msg)->
 	    after ?TIMEOUT_TCPCLIENT ->
 		    Result={error,[?MODULE,?LINE,tcp_timeout,IpAddr,Port,Msg]}
 	    end,
-	    ok=gen_tcp:close(Socket) ;
+	    ok=gen_tcp:close(Socket);
 	{error,Err}->
 	    Result={error,Err}
     end,

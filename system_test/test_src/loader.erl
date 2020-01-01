@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(test_loader). 
+-module(loader).  
   
 %% --------------------------------------------------------------------
 %% Include files
@@ -14,7 +14,12 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--compile(export_all).
+-export([start/0,
+
+	 stop/0
+	]).
+
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -27,6 +32,10 @@
 %
 % AppList=[{{service,"iaas_service"},{dir,"/home/pi/erlang/c/source"},{computer,"master_computer",'master_computer@asus'}}]
 start()->
+io:format(" ~n"),
+    io:format("~p",[time()]),
+    io:format(" Test started :~p~n",[{?MODULE,start}]),
+    io:format(" ~n"),
     [{computers,Computers}]=system_test:get(computers),
     [{lib_service,LibService}]=system_test:get(lib_service),
     [{apps,Apps}]=system_test:get(apps),
@@ -47,6 +56,10 @@ start([{{service,ServiceId},{Type,Source},{computer,ComputerId}}|T],Computers,Li
     start(T,Computers,LibService).
 %------------------------------------------------------------
 stop()->
+io:format(" ~n"),
+    io:format("~p",[time()]),
+    io:format(" Test started :~p~n",[{?MODULE,stop}]),
+    io:format(" ~n"),
     [{lib_service,LibService}]=system_test:get(lib_service),
     [{apps,Apps}]=system_test:get(apps),
     stop(Apps,LibService).
@@ -56,6 +69,7 @@ stop([],_Computers)->
     io:format("  OK :~p~n",[{?MODULE,stop}]),
     io:format(" ~n");
 stop([{{service,ServiceId},{_Type,_Source},{computer,ComputerId}}|T],Computers)->
+    io:format("Apps :~p~n",[{?MODULE,ServiceId,ComputerId}]),
     {ComputerId,Computer,IpAddr,Port}=lists:keyfind(ComputerId,1,Computers),
     rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{container,delete,[Computer,ComputerId,[ServiceId]]}]),
     {badrpc,_}=rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{list_to_atom(ServiceId),ping,[]}]),

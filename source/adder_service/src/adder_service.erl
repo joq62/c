@@ -78,10 +78,10 @@ heart_beat(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
- %   {ok,Info} = file:consult(?NODE_CONFIG),
- %   {controller_pods,ControllerPods}=lists:keyfind(controller_pods,1,Info),
-  %  {sd_pods,SdPods}=lists:keyfind(sd_pods,1,Info),
-  %  spawn(fun()->h_beat(?HB_INTERVAL) end),
+    % Update Dns
+  %  {DnsIpAddr,DnsPort}=lib_service:dns_address(),
+    % dns_service:add(MyServiceId,MyIp,MyPort,MyVm),
+   % tcp_client:call({DnsIpAddr,DnsPort},dns_service,add,[
     {ok, #state{controller_pods=[],sd_pods=[]}}.   
     
 %% --------------------------------------------------------------------

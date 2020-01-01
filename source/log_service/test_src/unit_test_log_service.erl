@@ -13,7 +13,17 @@
 -define(TIMEOUT,1000*15).
 
 %% External exports
--compile(export_all).
+
+-export([test/0,
+	 init_test/0,
+	 start_log_test/0,
+	 read_file_test/0,sevrity_test/0,
+	 latest_event_test/0,node_module_test/0,
+	 date_test/0,
+	 stop_log_test/0
+	]).
+
+%-compile(export_all).
 
 
 

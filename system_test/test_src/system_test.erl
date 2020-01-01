@@ -14,8 +14,11 @@
 %% --------------------------------------------------------------------
 
 %% External exports
+-export([start/0,
+	get/1,delete/1,all/0,test_ets/0
+	]).
 
--export([start/0]).
+%-compile(export_all).
 
 
 %% ====================================================================
@@ -28,92 +31,88 @@
 %% --------------------------------------------------------------------
 
 -define(TEST_SPEC,"system_test.spec").
-
+-define(ETS,system_test_ets).
 start()->
-    {ok,I}=file:consult(?TEST_SPEC),
-    {computers,Computers}=lists:keyfind(computers,1,I),
-    {lib_service,LibService}=lists:keyfind(lib_service,1,I),
-    {apps,Apps}=lists:keyfind(apps,1,I),
-    
-    %clean up
-    rpc:call(node(),infrastructure,stop,[Computers]),
-    % New session 
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,start,[Computers,LibService])}]),
-   
-    % Load services
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,start,[Apps,Computers,LibService])}]),
-    
-    % Init iaas
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,start,[Apps,Computers])}]),
-   
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,stop,[])}]),
 
-    % Do testing
+    io:format("  ~n"),
+    io:format(" ***************** ~p",[time()]),
+    io:format(" Test started :~p~n",[{?MODULE,start}]),
+    io:format(" ~n"),
 
-    
-    % Stop testing
-
-    % Clean up
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,stop,[Apps,Computers])}]),
-    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,stop,[Computers])}]),
+    % Need to load start lib_service
+    application:start(lib_service),
+    ets_init(),
+    [{test_files,TestFiles}]=system_test:get(test_files),
+    TestResult=[do_test(M,F)||{M,F}<-TestFiles],
+    io:format("  ~n"),
+    io:format(" ***************** ~p",[time()]),
+    io:format("Test result ********* ~n  ~p~n",[TestResult]),
     
     init:stop(),
     ok.
 
-    
-%% --------------------------------------------------------------------
-%% Function:init 
-%% Description:
-%% Returns: non
-%% --------------------------------------------------------------------
-do_unit_test([],_Pod,_PodId,Result)->
-    Result;
-do_unit_test([Info|T],Pod,PodId,Acc) ->
-    {{service2test,ServiceId},{src_dir,Source},
-     {test_module,TestModule},{preload,_Applications}}=Info,
-    io:format(" ~n"),
-    io:format("~p",[time()]),
-    io:format(": Testing  ~p~n",[ServiceId]),
-    io:format(" ~n"),
-  %   io:format("ping  ~p~n",[{net_adm:ping(Pod)}]),
-    ok=container:create(Pod,PodId,
-			[{{service,ServiceId},
-			  {dir,Source}}
-			]),
-    R=rpc:call(Pod,TestModule,test,[]),
-    io:format("Test result  ~p~n",[{R,ServiceId}]),
-   % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
-    container:delete(Pod,PodId,[ServiceId]),
-    do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).
+do_test(M,F)->
+    R=rpc:call(node(),M,F,[]),
+    Result=case R of 
+	       ok->
+		   {ok,M,F};
+	       Err ->
+		   io:format("Sub test  ~p~n",[{error,M,F,Err}]),
+		   {error,M,F,Err}
+	   end,
+    Result.
 
 %% --------------------------------------------------------------------
 %% Function:init 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+ets_init()->
+    ets:new(?ETS, [bag, named_table]),
+    Result=case file:consult(?TEST_SPEC) of
+	       {ok,I}->
+		   add(lists:keyfind(computers,1,I)),
+		   add(lists:keyfind(lib_service,1,I)),
+		   add(lists:keyfind(apps,1,I)),
+		   add(lists:keyfind(test_files,1,I)),
+		   ok;
+	       {error,Err} ->
+		   {error,Err}
+	   end,
+    Result.
 
-%create_dir()->
-        % Use date and time 
- %   timer:sleep(1200), % Secure that there is a new directory becaus o second resolution
- %   {{Y,M,D},{H,Min,S}}={date(),time()},
- %   Time=string:join([integer_to_list(H),integer_to_list(Min),integer_to_list(S)],":"),
- %   Date=string:join([integer_to_list(Y),integer_to_list(M),integer_to_list(D)],"-"),
- %   DirName=string:join([Time,Date,"test_dir"],"_"),
- %   file:make_dir(DirName),
- %   DirName.
+add({Key,Value})->
+    ets:match_delete(?ETS,{Key,Value}),
+    ets:insert(?ETS,{Key,Value}).
 
-%----------------------------------------------
-%start_service(Node,PodId,ListOfServices)->
-%    case pod:create(Node,PodId) of
-%	{error,Err}->
-%	    io:format(" ~p~n~n",[{error,Err}]);
-%	{ok,Pod}->
-%	    ok=container:create(Pod,PodId,ListOfServices)
-%    end.
+
+delete(Key)->
+    ets:match_delete(?ETS,{Key,'_'}).
+
+get(Key)->
+   Result=case ets:match_object(?ETS, {Key,'$1'}) of
+	      []->
+		  [];
+	      Info ->
+		  Info
+	  end,
+    Result.
+
+all()->
+    ets:tab2list(?ETS).
+
+test_ets()->
+    [{computers,
+      [{"master_computer",'master_computer@asus',"localhost",42000},
+       {"w1_computer",'w1_computer@asus',"localhost",42001},
+       {"w2_computer",'w2_computer@asus',"localhost",42002}]}
+    ]=system_test:get(computers),
+    [{lib_service,[{{service,"lib_service"},{dir,"/home/pi/erlang/c/source"}}]}]=system_test:get(lib_service),
     
-%stop_service(Node,PodId,ListOfServices)->
- %   {ok,Host}=rpc:call(Node,inet,gethostname,[]),
-  %  PodIdServer=PodId++"@"++Host,
-   % Pod=list_to_atom(PodIdServer),
-  %  container:delete(Pod,PodId,ListOfServices),
-  %  {ok,stopped}=pod:delete(Node,PodId).
+    [{apps,[{{service,"dns_service"},{dir,"/home/pi/erlang/c/source"},
+	     {computer,"master_computer"}},{{service,"iaas_service"},
+					    {dir,"/home/pi/erlang/c/source"},
+					    {computer,"master_computer"}}]}
+    ]=system_test:get(apps),
+    [{test_files,[{infrastructure,stop}]}]=system_test:get(test_files),
+    ok.

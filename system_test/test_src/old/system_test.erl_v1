@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(unit_test). 
+-module(system_test). 
  
 %% --------------------------------------------------------------------
 %% Include files
@@ -27,26 +27,39 @@
 %% Returns: non
 %% --------------------------------------------------------------------
 
--define(UNIT_TEST_SPEC,"unit_test.spec").
+-define(TEST_SPEC,"system_test.spec").
 
 start()->
+    {ok,I}=file:consult(?TEST_SPEC),
+    {computers,Computers}=lists:keyfind(computers,1,I),
+    {lib_service,LibService}=lists:keyfind(lib_service,1,I),
+    {apps,Apps}=lists:keyfind(apps,1,I),
+    {test_files,TestFiles}=lists:keyfind(test_files,1,I),
+
+    R=[rpc:call(node(),,M,F,A)||{M,F,A}<-TestFiles]
     
-    % Each unit test creates its own test vms
-    % load lib_service + application to test
-    % {{service2test,"lib_service"},{src_dir,"/home/pi/erlang/c/source"},
-    %  {test_module,unit_test_lib_service},{preload,[]}}
-    % Create pod to load application to test
-    PodId="pod_test_1",
-    pod:delete(node(),PodId),
-    {ok,Pod}=pod:create(node(),PodId),
-    {ok,I}=file:consult(?UNIT_TEST_SPEC),
-    Result=do_unit_test(I,Pod,PodId,[]),
-    io:format(" ~n"),
-    io:format("~p ",[time()]),
-    io:format(": Result ~n"),
-    [io:format("~p~n",[R])||R<-Result],
-    io:format(" ~n"),
-    pod:delete(node(),PodId),
+    %clean up
+    rpc:call(node(),infrastructure,stop,[Computers]),
+    % New session 
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,start,[Computers,LibService])}]),
+   
+    % Load services
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,start,[Apps,Computers,LibService])}]),
+    
+    % Init iaas
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,start,[Apps,Computers])}]),
+   
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),init_iaas,stop,[])}]),
+
+    % Do testing
+
+    
+    % Stop testing
+
+    % Clean up
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),test_loader,stop,[Apps,Computers])}]),
+    io:format("~p~n",[{?MODULE,?LINE,rpc:call(node(),infrastructure,stop,[Computers])}]),
+    
     init:stop(),
     ok.
 
@@ -70,8 +83,8 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 			[{{service,ServiceId},
 			  {dir,Source}}
 			]),
-    R={rpc:call(Pod,TestModule,test,[],1*60*1000),ServiceId,TestModule,?MODULE,?LINE},
-    io:format("Test result  ~p~n",[R]),
+    R=rpc:call(Pod,TestModule,test,[]),
+    io:format("Test result  ~p~n",[{R,ServiceId}]),
    % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
     container:delete(Pod,PodId,[ServiceId]),
     do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).

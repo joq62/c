@@ -17,8 +17,16 @@
 
 %% intermodule 
 %% External exports
+-export([init/0,add/4,
+	 change_status/4,
+	 delete/3,delete/4,
+	 all/0,active/0,passive/0,
+	 status/3,
+	 check_all_status/0,change_status/1,
+	 do_ping/2
+       ]).
 
--compile(export_all).
+%-compile(export_all).
 %% ====================================================================
 %% External functions
 %% ===================================================================
@@ -89,7 +97,7 @@ do_ping([{IpAddr,Port,Pod,_Status}|T],Acc) ->
     case tcp_client:connect(IpAddr,Port) of
 	{error,Err}->
 	    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,Err]};
-	PidSession->
+	{ok,PidSession}->
 	   % doesnt work!   rpc:call(node(),tcp_client,session_call,[PidSession,{net_adm,ping,[Pod]}],5000),
 	  %  tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),
 	    tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),

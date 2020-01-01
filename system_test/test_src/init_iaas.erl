@@ -14,7 +14,12 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--compile(export_all).
+-export([start/0,
+
+	 stop/0
+	]).
+
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -26,6 +31,15 @@
 %  {"w2_computer",'w2_computer@asus',"localhost",42002}]
 %
 % AppList=[{{service,"iaas_service"},{dir,"/home/pi/erlang/c/source"},{computer,"master_computer"}}]
+
+start()->
+    io:format(" ~n"),
+    io:format("~p",[time()]),
+    io:format(" Test started :~p~n",[{?MODULE,start}]),
+    io:format(" ~n"),
+    [{computers,Computers}]=system_test:get(computers),
+    [{apps,Apps}]=system_test:get(apps),
+    start(Apps,Computers).
 
 start(Apps,Computers)->
     %% Get iaas computer and address
