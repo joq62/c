@@ -15,7 +15,7 @@
 %% --------------------------------------------------------------------
 -define (CLIENT_SETUP,[binary, {packet,4}]).
 -define (TIMEOUT_TCPCLIENT,10*1000).
--define (TIMEOUT_CONNECT,5*1000).
+-define (TIMEOUT_CONNECT,1*1000).
 
 -define(KEY_M_OS_CMD,89181808).
 -define(KEY_F_OS_CMD,"95594968").

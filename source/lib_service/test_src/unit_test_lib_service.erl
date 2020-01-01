@@ -23,7 +23,18 @@
 %	 dns_address_test/0,
 %	 end_tcp_test/0]).
 
--compile(export_all).
+-export([test/0,init_test/0,start_container_1_test/0,start_container_2_test/0,
+	 adder_1_test/0,adder_2_test/0,
+	 stop_container_1_test/0,stop_container_2_test/0,
+	 misc_lib_1_test/0,misc_lib_2_test/0,
+	 init_tcp_test/0,
+	 tcp_seq_server_start_stop/0,
+	 tcp_par_server_start_stop/0,
+	 tcp_2_test/0,
+	 tcp_3_test/0,
+	 end_tcp_test/0]).
+
+%-compile(export_all).
 
 -define(TIMEOUT,1000*15).
 
@@ -202,11 +213,13 @@ tcp_par_server_start_stop()->
 
 tcp_2_test()->
     PodServer=misc_lib:get_node_by_id("pod_lib_1"),
-    {ok,_Server}=rpc:call(PodServer,tcp_server,start_par_server,["localhost",53000]),
-
-    {ok,Session}=tcp_client:connect("localhost",53000),
+    {ok,_}=rpc:call(PodServer,tcp_server,start_par_server,["localhost",53000]),
+    {error,[eexists,dns_service,lib_service,_]}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
+    {ok,_}=rpc:call(PodServer,tcp_server,start_par_server,["localhost",42000]),
+    {"localhost",42000}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
     
-   glurk=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
+    {ok,Session}=tcp_client:connect("localhost",53000),
+    {"localhost",42000}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
  % tcp_client:session_call(PidSession,{erlang,date,[]}),
     loop_send(2,Session),
     _R1=loop_get(2,Session,[]),

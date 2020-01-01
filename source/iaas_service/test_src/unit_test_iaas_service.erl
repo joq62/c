@@ -73,9 +73,9 @@ init_tcp_test()->
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]),    
-    rpc:call(Computer_1,tcp_server,start_seq_server,[42001]),
-    rpc:call(Computer_2,tcp_server,start_seq_server,[42002]),
-    rpc:call(Computer_3,tcp_server,start_seq_server,[42003]),
+    rpc:call(Computer_1,tcp_server,start_seq_server,["localhost",42001]),
+    rpc:call(Computer_2,tcp_server,start_seq_server,["localhost",42002]),
+    rpc:call(Computer_3,tcp_server,start_seq_server,["localhost",42003]),
     %% Check if running
     D=date(),
     {ok,P1}=tcp_client:connect("localhost",42001),
@@ -177,7 +177,7 @@ node_up_again_test()->
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]),    
-    rpc:call(Computer_1,tcp_server,start_seq_server,[42001]),
+    rpc:call(Computer_1,tcp_server,start_seq_server,["localhost",42001]),
     D=date(),
     D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}]),
     
