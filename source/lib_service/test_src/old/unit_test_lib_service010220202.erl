@@ -73,6 +73,7 @@ init_test()->
     pod:delete(node(),"pod_lib_2"),
     pod:delete(node(),"pod_lib_1"),
     pod:delete(node(),"pod_master"),
+    pod:delete(node(),"pod_master2"),
     {pong,_,lib_service}=lib_service:ping(),
     
     {ok,PodMaster}=pod:create(node(),"pod_master"),
@@ -156,7 +157,7 @@ adder_2_test()->
 stop_adder_test()->
     
     {ok,stopped}=tcp_client:call({"localhost",50002},{lib_service,stop_tcp_server,["localhost",50002]}),
-    {ok,stopped}=tcp_client:call({"localhost",50002},{lib_service,stop_tcp_server,["localhost",50001]}),
+    {ok,stopped}=tcp_client:call({"localhost",50001},{lib_service,stop_tcp_server,["localhost",50001]}),
     {ok,stopped}=tcp_client:call({"localhost",42000},{lib_service,stop_tcp_server,["localhost",42000]}),
     {error,econnrefused}=tcp_client:call({"localhost",50002},{adder_service,add,[20,22]}),
     ok.
@@ -252,13 +253,28 @@ tcp_par_server_start_stop()->
 
 tcp_2_test()->
     Pod_1=misc_lib:get_node_by_id("pod_lib_1"),
-    Pod_2=misc_lib:get_node_by_id("pod_lib_2"),
+%    Pod_2=misc_lib:get_node_by_id("pod_lib_2"),
     ok=rpc:call( Pod_1,lib_service,start_tcp_server,["localhost",53000,parallell]),
 %    {pong,pod_test_1@asus,lib_service}=lib_service:ping(),
-    {error,[eexists,dns_service,lib_service,_]}=lib_service:dns_address(),
-    {error,[eexists,dns_service,lib_service,_]}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
-    ok=rpc:call(Pod_2,lib_service,start_tcp_server,["localhost",42000,parallell]),
-   % {"localhost",42000}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
+    {error,[eexists,dns_service,{"localhost",42000},{error,econnrefused},
+	    lib_service,_]}=lib_service:dns_address(),
+    {error,[eexists,dns_service,{"localhost",42000},{error,econnrefused},
+	    lib_service,_]}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
+    {ok,PodMaster}=pod:create(node(),"pod_master2"),
+    ok=container:create(PodMaster,"pod_master2",
+			[{{service,"lib_service"},
+			  {dir,"/home/pi/erlang/c/source"}}
+			]),
+    ok=container:create(PodMaster,"pod_master2",
+			[{{service,"dns_service"},
+			  {dir,"/home/pi/erlang/c/source"}}
+			]),
+    
+    ok=rpc:call(PodMaster,lib_service,start_tcp_server,["localhost",42000,parallell]),
+    {pong,PodMaster,lib_service}=tcp_client:call({"localhost",42000},{lib_service,ping,[]}),
+    {pong,PodMaster,dns_service}=tcp_client:call({"localhost",42000},{dns_service,ping,[]}),
+    
+    {"localhost",42000}=tcp_client:call({"localhost",53000},{lib_service,dns_address,[]}),
     {"localhost",42000}=lib_service:dns_address(),
     {ok,Socket}=tcp_client:connect("localhost",53000),
     %tcp_client:cast(PidSession,{erlang,date,[]}),
@@ -268,7 +284,7 @@ tcp_2_test()->
     _R2=loop_get(2,Socket,[]),
     tcp_client:disconnect(Socket),
     {ok,stopped}=rpc:call(Pod_1,lib_service,stop_tcp_server,["localhost",53000]),
-    {ok,stopped}=rpc:call(Pod_2,lib_service,stop_tcp_server,["localhost",42000]),
+    {ok,stopped}=rpc:call(PodMaster,lib_service,stop_tcp_server,["localhost",42000]),
     
     ok.
 
@@ -307,6 +323,7 @@ end_tcp_test()->
     container:delete('pod_lib_2@asus.com',"pod_adder_2",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_lib_2"),
     {ok,stopped}=pod:delete(node(),"pod_master"),
+    {ok,stopped}=pod:delete(node(),"pod_master2"),
     ok.
 
 

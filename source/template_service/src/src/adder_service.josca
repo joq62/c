@@ -1,0 +1,7 @@
+{specification, adder_service}.
+{type,service}.
+{description, "Simple add function for test purpose" }.
+{vsn, "1.0.0" }.
+{exported_services,["adder_service"]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

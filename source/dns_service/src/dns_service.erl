@@ -13,8 +13,7 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-
--define(HEARTBEAT_INTERVAL,60*1000).
+-include("common_macros.hrl").
 %% --------------------------------------------------------------------
 %% Key Data structures
 %% 
@@ -99,7 +98,7 @@ heart_beat()->
 %% --------------------------------------------------------------------
 init([]) ->
     dns_lib:init(),
-    spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
+    spawn(fun()-> local_heart_beat(?HB_TIMEOUT) end), 
 
 
     io:format("Started Service  ~p~n",[{?MODULE}]),

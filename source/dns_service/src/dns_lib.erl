@@ -11,16 +11,27 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-
+% -ifdef(unit_test).
+-ifdef(local).
+-define(EXPIRED_TIME,1).
+-endif.
+-ifdef(private).
+-define(EXPIRED_TIME,1).
+-endif.
+-ifdef(public).
+-define(EXPIRED_TIME,50).
+-endif.
+-include("common_macros.hrl").
 %% --------------------------------------------------------------------
 %-record(dns,{service_id,ip_addr,port,vm,timestamp}).
 -define(DNS_ETS,dns_ets).
--define(EXPIRED_TIME,50*1000).
+
 %% External exports
 -export([init/0,add/4,delete/4,delete/5,
 	 clear/0,get/1,
 	 delete_expired/0,expired/0,
-	 all/0
+	 all/0,
+	 get_expired_time/0
 	]).
 
 %-compile(export_all).
@@ -36,6 +47,8 @@
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+get_expired_time()->
+    ?EXPIRED_TIME.
 init()->
     ?DNS_ETS=ets:new(?DNS_ETS,[public,bag,named_table]).
 
@@ -71,7 +84,8 @@ expired()->
     L= all(),
     NewTime=erlang:system_time(second),
   %  Exp=[{ServiceId,IpAddr,Port,Pod,Time,(NewTime-Time)}||{ServiceId,IpAddr,Port,Pod,Time}<-L,?EXPIRED_TIME<(NewTime-Time)],
-    Exp=[{ServiceId,IpAddr,Port,Pod,Time}||{ServiceId,IpAddr,Port,Pod,Time}<-L,?EXPIRED_TIME=<(NewTime-Time)],
+
+    Exp=[{ServiceId,IpAddr,Port,Pod,Time}||{ServiceId,IpAddr,Port,Pod,Time}<-L,?EXPIRED_TIME<(NewTime-Time)],
 
     Exp.
 

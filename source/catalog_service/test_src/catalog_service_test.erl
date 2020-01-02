@@ -4,8 +4,8 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(catalog_unit_test). 
-  
+-module(catalog_service_test). 
+   
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
@@ -15,21 +15,25 @@
 -define(SERVER_ID,"test_tcp_server").
 %% External exports
 -export([test/0,
-	 init_test/0,start_catalog_test/0,
-	 catalog_1_test/0,catalog_2_test/0,  
-	 stop_catalog_test/0]).
+	 init_test/0,
+	 add_all/0,
+	 delete/0,
+	 get/0, 
+	 cleanup/0]).
 
 %-compile(export_all).
 
--define(TIMEOUT,1000*15).
+
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+-define(TIMEOUT,1000*15).
 test()->
-    TestList=[init_test,start_catalog_test,
-	      catalog_1_test,catalog_2_test,  
-	      stop_catalog_test 
+    TestList=[init_test,
+	      add_all,
+	      delete,
+	      cleanup 
 	     ],
     test_support:execute(TestList,?MODULE,?TIMEOUT).
 	
@@ -47,23 +51,23 @@ init_test()->
 %------------------  -------
 
 
-start_catalog_test()->
+add_all()->
     App1=[{app,app1},
 	  {description,"Specification file for application template"},
 	  {vsn,"1.0.0"},
-	  {machine,[{"localhost",42001}]},
+	  {machine,[{"localhost",50001}]},
 	  {services,[{{service,"t10_service"},{dir,path_t10_service}},
 		     {{service,"t11_service"},{url,url_t11_service}}]}],
     App2=[{app,app2},
 	  {description,"Specification file for application template"},
 	  {vsn,"1.0.0"},
-	  {machine,[{"localhost",42002}]},
+	  {machine,[{"localhost",50002}]},
 	  {services,[{{service,"t20_service"},{dir,path_t20_service}},
 		     {{service,"t21_service"},{url,url_t21_service}}]}],
     App3=[{app,app3},
 	  {description,"Specification file for application template"},
 	  {vsn,"1.0.0"},
-	  {machine,[{"localhost",42003}]},
+	  {machine,[{"localhost",50003}]},
 	  {services,[{{service,"t30_service"},{dir,path_t30_service}},
 		     {{service,"t31_service"},{url,url_t31_service}}]}],
 
@@ -72,7 +76,7 @@ start_catalog_test()->
     [{app_spec,
       app1,
       "Specification file for application template","1.0.0",
-      [{"localhost",42001}],
+      [{"localhost",50001}],
       [{{service,"t10_service"},{dir,path_t10_service}},
        {{service,"t11_service"},{url,url_t11_service}}]}]=catalog_service:all(),
     catalog_service:add(App2),
@@ -81,19 +85,19 @@ start_catalog_test()->
     TestPattern=[{app_spec,app1,
 		  "Specification file for application template",
 		  "1.0.0",
-		  [{"localhost",42001}],
+		  [{"localhost",50001}],
 		  [{{service,"t10_service"},{dir,path_t10_service}},
 		   {{service,"t11_service"},{url,url_t11_service}}]},
 		 {app_spec,app2,
 		  "Specification file for application template",
 		  "1.0.0",
-		  [{"localhost",42002}],
+		  [{"localhost",50002}],
 		  [{{service,"t20_service"},{dir,path_t20_service}},
 		   {{service,"t21_service"},{url,url_t21_service}}]},
 		 {app_spec,app3,
 		  "Specification file for application template",
 		  "1.0.0",
-		  [{"localhost",42003}],
+		  [{"localhost",50003}],
 		  [{{service,"t30_service"},{dir,path_t30_service}},
 		   {{service,"t31_service"},{url,url_t31_service}}]}],
     L=catalog_service:all(),		  
@@ -107,18 +111,18 @@ start_catalog_test()->
        end,
    ok.
 
-catalog_1_test()->
+delete()->
     catalog_service:delete(app2,"1.0.0"),
     TestPattern=[{app_spec,app1,
 		  "Specification file for application template",
 		  "1.0.0",
-		  [{"localhost",42001}],
+		  [{"localhost",50001}],
 		  [{{service,"t10_service"},{dir,path_t10_service}},
 		   {{service,"t11_service"},{url,url_t11_service}}]},
 		 {app_spec,app3,
 		  "Specification file for application template",
 		  "1.0.0",
-		  [{"localhost",42003}],
+		  [{"localhost",50003}],
 		  [{{service,"t30_service"},{dir,path_t30_service}},
 		   {{service,"t31_service"},{url,url_t31_service}}]}],
     L=catalog_service:all(),		  
@@ -133,18 +137,18 @@ catalog_1_test()->
     
     ok.
 
-catalog_2_test()->
+get()->
     [{app_spec,
       app1,
       "Specification file for application template","1.0.0",
-      [{"localhost",42001}],
+      [{"localhost",50001}],
       [{{service,"t10_service"},{dir,path_t10_service}},
        {{service,"t11_service"},{url,url_t11_service}}]}]=catalog_service:get(app1,"1.0.0"),
     []=catalog_service:get(app1,"1.0.1"),
     []=catalog_service:get(app2,"1.0.0"),
 ok.
 
-stop_catalog_test()->
+cleanup()->
     ok.
 
 

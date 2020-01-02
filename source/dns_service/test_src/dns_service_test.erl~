@@ -4,12 +4,12 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(unit_dns_service). 
+-module(dns_service_test).  
   
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-% -include_lib("eunit/include/eunit.hrl").
+
 
 %% --------------------------------------------------------------------
 
@@ -41,6 +41,7 @@ test()->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_test()->
+    {ok,stopped}=pod:delete(node(),"pod_dns_1"),
     {pong,_,dns_service}=dns_service:ping(),
     ok.
     
@@ -49,15 +50,15 @@ init_test()->
 
 start_dns_test()->
     {ok,Pod}=pod:create(node(),"pod_dns_1"),
-     ok=container:create(Pod,"pod_dns_1",
+ ok=container:create(Pod,"pod_dns_1",
+			[{{service,"lib_service"},
+			  {dir,"/home/pi/erlang/c/source"}}
+			]),   
+    ok=container:create(Pod,"pod_dns_1",
 			[{{service,"dns_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]),
-    ok=container:create(Pod,"pod_dns_1",
-			[{{service,"lib_service"},
-			  {dir,"/home/pi/erlang/c/source"}}
-			]),
-   
+   glurk=rpc:call(Pod,dns_lib,get_expired_time,[]),
    ok.
 
 dns_1_test()->
@@ -90,7 +91,7 @@ dns_2_test()->
     dns_service:add("s1","IpAddr2",1001,vm1),
     dns_service:add("s1","IpAddr1",1000,vm2),
     dns_service:add("s2","IpAddr1",1000,vm3),
-    timer:sleep(2000),
+    timer:sleep(3000),
     dns_service:add("s2","IpAddr1",1000,vm3),
     [{"s1",_,_,_,_},
      {"s1",_,_,_,_},
