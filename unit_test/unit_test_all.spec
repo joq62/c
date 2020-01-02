@@ -7,4 +7,4 @@
 {{service2test,"log_service"},{src_dir,"/home/pi/erlang/c/source"},
  {test_module,log_service_test},{preload,[]}}.
 {{service2test,"catalog_service"},{src_dir,"/home/pi/erlang/c/source"},
- {test_module,catalog_unit_test},{preload,[]}}.
+ {test_module,catalog_service_test},{preload,[]}}.
