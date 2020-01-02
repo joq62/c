@@ -57,7 +57,34 @@ test()->
 	      tcp_2_test,
 	      tcp_3_test,
 	      end_tcp_test],
-    test_support:execute(TestList,?MODULE,?TIMEOUT).
+   % TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
+    TestR=test(TestList,[]),    
+    Result=case [{error,F,Res}||{Res,F}<-TestR,Res/=ok] of
+	       []->
+		   ok;
+	       ErrorMsg->
+		   ErrorMsg
+	   end,
+    Result.
+
+test([],Result)->
+    Result;
+test([F|T],Acc) ->
+    io:format("~n"),
+    io:format("~p",[{time(),?MODULE,F}]),
+    R=rpc:call(node(),?MODULE,F,[],?TIMEOUT),
+    case R of
+	ok->
+	    io:format(" => OK ~n");
+	_->
+	    io:format("Error ~p~n",[{time(),?MODULE,F,R}])
+    end,
+	
+    test(T, [{R,F}|Acc]).
+
+	
+
+
 %% --------------------------------------------------------------------
 %% Function:init 
 %% Description:

@@ -15,7 +15,7 @@
 %% --------------------------------------------------------------------
 %-record(dns,{service_id,ip_addr,port,vm,timestamp}).
 -define(DNS_ETS,dns_ets).
--define(EXPIRED_TIME,1).
+-define(EXPIRED_TIME,50*1000).
 %% External exports
 -export([init/0,add/4,delete/4,delete/5,
 	 clear/0,get/1,

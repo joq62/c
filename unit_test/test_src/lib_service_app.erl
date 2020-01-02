@@ -1,7 +1,7 @@
 %% Author: uabjle
 %% Created: 10 dec 2012
 %% Description: TODO: Add description to application_org
--module(adder_service_app).
+-module(lib_service_app).
 
 -behaviour(application).
 %% --------------------------------------------------------------------
@@ -44,9 +44,9 @@
 %%          {error, Reason}
 %% --------------------------------------------------------------------
 start(_Type, _StartArgs) ->
-   % {ok,Pid}= adder_service_sup:start_link(),
-   % {ok,Pid}.
-    adder_service_sup:start_link().
+    Args=[],
+    {ok,Pid}= lib_service_sup:start_link(Args),
+    {ok,Pid}.
 %% --------------------------------------------------------------------
 %% Func: stop/1
 %% Returns: any

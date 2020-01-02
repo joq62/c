@@ -4,40 +4,45 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(unit_test_adder_service). 
- 
+-module(misc_lib).
+  
+
+
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
--include_lib("eunit/include/eunit.hrl").
 
 %% --------------------------------------------------------------------
 
 %% External exports
-
--export([]).
+-export([get_node_by_id/1,get_vm_id/0,get_vm_id/1
+	]).
+	 
+%-compile(export_all).
 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
 %% --------------------------------------------------------------------
-%% Function:init 
+%% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-init_test()->
-    ok=application:start(adder_service),
-    ok.
+get_node_by_id(Id)->
+    {ok,Host}=inet:gethostname(),
+    list_to_atom(Id++"@"++Host).
 
-t1_test()->
-    42=adder_service:add(20,22),
-    142=adder:add(120,22),
-    ok.
-
-
-
-stop_test()->
-    ok=application:stop(adder_service),
-    ok=application:unload(adder_service),
-    ok.
+get_vm_id()->
+    get_vm_id(node()).
+get_vm_id(Node)->
+    % "NodeId@Host
+    [NodeId,Host]=string:split(atom_to_list(Node),"@"), 
+    {NodeId,Host}.
+    
+    
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------

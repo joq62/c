@@ -42,17 +42,7 @@ test()->
 	      latest_event_test,node_module_test,date_test,
 	      stop_log_test
 	     ],
-    TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
-    
-    
-    Result=case [{error,F,Res}||{Res,F}<-TestR,Res/=ok] of
-	       []->
-		   ok;
-	       ErrorMsg->
-		   ErrorMsg
-	   end,
-    Result.
-
+    test_support:execute(TestList,?MODULE,?TIMEOUT).
 
 %% --------------------------------------------------------------------
 %% Function:init 

@@ -9,7 +9,7 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-% -include_lib("eunit/include/eunit.hrl").
+% 
 
 %% --------------------------------------------------------------------
 -define(SERVER_ID,"test_tcp_server").
@@ -31,16 +31,7 @@ test()->
 	      catalog_1_test,catalog_2_test,  
 	      stop_catalog_test 
 	     ],
-    TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
-    
-    
-    Result=case [{error,F,Res}||{Res,F}<-TestR,Res/=ok] of
-	       []->
-		   ok;
-	       ErrorMsg->
-		   ErrorMsg
-	   end,
-    Result.
+    test_support:execute(TestList,?MODULE,?TIMEOUT).
 	
 
 

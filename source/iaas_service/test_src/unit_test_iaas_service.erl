@@ -32,17 +32,7 @@ test()->
 	      start_iaas_test,node_down_test,node_up_again_test,
 	      missing_node_test,
 	      end_tcp_test],
-    TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
-    
-    
-    Result=case [{error,F,Res}||{Res,F}<-TestR,Res/=ok] of
-	       []->
-		   ok;
-	       ErrorMsg->
-		   ErrorMsg
-	   end,
-    Result.
-	
+    test_support:execute(TestList,?MODULE,?TIMEOUT).	
 
 
 %% --------------------------------------------------------------------

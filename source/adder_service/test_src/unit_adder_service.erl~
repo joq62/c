@@ -32,7 +32,17 @@ test()->
 	      dns_1_test,dns_2_test,
 	      stop_dns_test 
 	     ],
-    test_support:execute(TestList,?MODULE,?TIMEOUT).
+    TestR=[{rpc:call(node(),?MODULE,F,[],?TIMEOUT),F}||F<-TestList],
+    
+    
+    Result=case [{error,F,Res}||{Res,F}<-TestR,Res/=ok] of
+	       []->
+		   ok;
+	       ErrorMsg->
+		   ErrorMsg
+	   end,
+    Result.
+	
 
 
 %% --------------------------------------------------------------------
