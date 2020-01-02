@@ -73,21 +73,21 @@ init_tcp_test()->
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]),    
-    rpc:call(Computer_1,tcp_server,start_seq_server,["localhost",42001]),
-    rpc:call(Computer_2,tcp_server,start_seq_server,["localhost",42002]),
-    rpc:call(Computer_3,tcp_server,start_seq_server,["localhost",42003]),
+    rpc:call(Computer_1,lib_service,start_tcp_server,["localhost",42001,sequence]),
+    rpc:call(Computer_2,lib_service,start_tcp_server,["localhost",42002,sequence]),
+    rpc:call(Computer_3,lib_service,start_tcp_server,["localhost",42003,sequence]),
     %% Check if running
     D=date(),
     {ok,P1}=tcp_client:connect("localhost",42001),
-    tcp_client:session_call(P1,Computer_1,{erlang,date,[]}),
+    tcp_client:cast(P1,{erlang,date,[]}),
     D=tcp_client:get_msg(P1,1000),
     tcp_client:disconnect(P1),
     {ok,P2}=tcp_client:connect("localhost",42002),
-    tcp_client:session_call(P2,{erlang,date,[]}),
+    tcp_client:cast(P2,{erlang,date,[]}),
     D=tcp_client:get_msg(P2,1000),
     tcp_client:disconnect(P2),
     {ok,P3}=tcp_client:connect("localhost",42003),
-    tcp_client:session_call(P3,{erlang,date,[]}),
+    tcp_client:cast(P3,{erlang,date,[]}),
     D=tcp_client:get_msg(P3,1000),
     tcp_client:disconnect(P3),
     ok.
@@ -109,7 +109,7 @@ start_iaas_test()->
     }=iaas_service:status("glurk",42001,misc_lib:get_node_by_id("pod_computer_1")),
 
     D=date(),
-    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}],2000),
+    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},{erlang,date,[]}],2000),
     iaas_service:add("localhost",42002,misc_lib:get_node_by_id("pod_computer_2"),active),
     iaas_service:add("localhost",42003,misc_lib:get_node_by_id("pod_computer_3"),active),
     L=iaas_service:check_all_status(),
@@ -137,7 +137,7 @@ start_iaas_test()->
     
 node_down_test()->
     D=date(),
-    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}]),
+    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},{erlang,date,[]}]),
     Computer_1=misc_lib:get_node_by_id("pod_computer_1"),
     container:delete(Computer_1,"pod_computer_1",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_computer_1"),
@@ -177,9 +177,9 @@ node_up_again_test()->
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]),    
-    rpc:call(Computer_1,tcp_server,start_seq_server,["localhost",42001]),
+    rpc:call(Computer_1,lib_service,start_tcp_server,["localhost",42001,sequence]),
     D=date(),
-    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},misc_lib:get_node_by_id("pod_computer_1"),{erlang,date,[]}]),
+    D=rpc:call(node(),tcp_client,call,[{"localhost",42001},{erlang,date,[]}]),
     
     TestPattern=[{ok,{"localhost",42003,pod_computer_3@asus},[]},
 		 {ok,{"localhost",42002,pod_computer_2@asus},[]},

@@ -67,8 +67,8 @@ stop()->
 %% Returns: non
 %% --------------------------------------------------------------------
 add_check_status_computers(_IaasComputerId,IaasComputer,IaasIpAddr,IaasPort,Computers)->
-    [rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},IaasComputer,{iaas_service,add,[IpAddr,Port,Computer,passive]}])
+    [rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},{iaas_service,add,[IpAddr,Port,Computer,passive]}])
      ||{_ComputerId,Computer,IpAddr,Port}<-Computers],
-    rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},IaasComputer,{iaas_service,check_all_status,[]}]).
+    rpc:call(node(),tcp_client,call,[{IaasIpAddr,IaasPort},{iaas_service,check_all_status,[]}]).
 
 %**************************************************************

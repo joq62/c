@@ -16,4 +16,3 @@
 	    {"w2_computer",'w2_computer@asus',"localhost",42002}
 	   ]}.
 {lib_service,[{{service,"lib_service"},{dir,"/home/pi/erlang/c/source"}}]}.
-     

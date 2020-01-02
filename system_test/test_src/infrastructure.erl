@@ -48,7 +48,7 @@ start()->
     
     % Allocate a tcp Server per Computer
     
-    [rpc:call(Computer,tcp_server,start_par_server,[Port])||{_ComputerId,Computer,_IpAddr,Port}<-ComputerList],
+    [rpc:call(Computer,lib_service,start_tcp_server,[IpAddr,Port,parallell])||{_ComputerId,Computer,IpAddr,Port}<-ComputerList],
     [{pong,_,_},
      {pong,_,_},
      {pong,_,_}]=[rpc:call(node(),tcp_client,call,[{IpAddr,Port},{lib_service,ping,[]}])||{_ComputerId,_Computer,IpAddr,Port}<-ComputerList],

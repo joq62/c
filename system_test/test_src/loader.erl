@@ -49,9 +49,9 @@ start([],_Computers,_LibService)->
 start([{{service,ServiceId},{Type,Source},{computer,ComputerId}}|T],Computers,LibService)->
     {ComputerId,Computer,IpAddr,Port}=lists:keyfind(ComputerId,1,Computers),
      %create container with the service
-    ok=rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{container,create,[Computer,ComputerId,[{{service,ServiceId},{Type,Source}}]]}]),
+    ok=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{container,create,[Computer,ComputerId,[{{service,ServiceId},{Type,Source}}]]}]),
     Service=list_to_atom(ServiceId),
-    {pong,Computer,Service}=rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{Service,ping,[]}]),
+    {pong,Computer,Service}=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{Service,ping,[]}]),
     % Container and service started OK
     start(T,Computers,LibService).
 %------------------------------------------------------------
@@ -71,8 +71,8 @@ stop([],_Computers)->
 stop([{{service,ServiceId},{_Type,_Source},{computer,ComputerId}}|T],Computers)->
     io:format("Apps :~p~n",[{?MODULE,ServiceId,ComputerId}]),
     {ComputerId,Computer,IpAddr,Port}=lists:keyfind(ComputerId,1,Computers),
-    rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{container,delete,[Computer,ComputerId,[ServiceId]]}]),
-    {badrpc,_}=rpc:call(node(),tcp_client,call,[{IpAddr,Port},Computer,{list_to_atom(ServiceId),ping,[]}]),
+    rpc:call(node(),tcp_client,call,[{IpAddr,Port},{container,delete,[Computer,ComputerId,[ServiceId]]}]),
+    {badrpc,_}=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{list_to_atom(ServiceId),ping,[]}]),
     % Container and service started OK
     stop(T,Computers).
 

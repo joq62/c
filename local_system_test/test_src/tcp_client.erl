@@ -15,99 +15,51 @@
 %% --------------------------------------------------------------------
 -define (CLIENT_SETUP,[binary, {packet,4}]).
 -define (TIMEOUT_TCPCLIENT,10*1000).
--define (TIMEOUT_CONNECT,1*1000).
+-define (TIMEOUT_CONNECT,3*1000).
 
 -define(KEY_M_OS_CMD,89181808).
 -define(KEY_F_OS_CMD,"95594968").
 -define(KEY_MSG,'100200273').
 
 %% External exports
--export([connect/2,disconnect/1,
-	 session_call/2,session_call/3,
+-export([connect/2,connect/3,disconnect/1,
+	 call/2,cast/2,
 	 get_msg/2
 	]).
 
--export([call/2,call/3,
-	 cast/3
+-export([
 	]).
 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+%% --------------------------------------------------------------------
+%% Function: connect(IpAddr,Port)
+%% Description:
+%% Returns: {ok,Socket}|{error,Err}
+%% --------------------------------------------------------------------
 connect(IpAddr,Port)->
-    ClientPid=self(),
-    Pid=spawn(fun()-> session(IpAddr,Port,ClientPid) end),
+   gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP).
+
+connect(IpAddr,Port,Timeout)->
+    Client=self(),
+    Pid=spawn(fun()->connect_timeout(IpAddr,Port,Client) end),
     Result=receive
-	       {Pid,ok}->
-		   {ok,Pid};
-	       {Pid,{error,[Err]}}->
-		   {error,[Err]}
-	   after ?TIMEOUT_CONNECT->
-		   {error,[timeout,IpAddr,Port,?MODULE,?LINE]}
-	   end,
-    Result.
-
-session_call(Pid,{M,F,A})->
-    S=self(),
-    Pid!{S,{call,{M,F,A}}}.
-
-session_call(Pid,Pod,{M,F,A})->
-    S=self(),
-    Pid!{S,{Pod,call,{M,F,A}}}.
-
-disconnect(Pid)->
-    S=self(),
-    Pid!{S,{disconnect}}.
-
-get_msg(Pid,Timeout)->
-    Result=receive
-	       {Pid,{msg,R}}->
-		   R;
-	       {Pid,{error,Err}} ->
-		   {error,Err};
-	       Unmatched ->
-		   {error,[unmatched,Unmatched]}
+	       {Pid,Reply}->
+		   Reply
 	   after Timeout ->
-		   {error,[get_msg_timeout,?MODULE,?LINE]}
+		   {error,[timeout,connect,IpAddr,Port,?MODULE,?LINE]}
 	   end,
     Result.
+		
+connect_timeout(IpAddr,Port,Client)->
+    Client!{self(),gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP)}.
 
-session(IpAddr,Port,ClientPid)->
-    case gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP) of
-	 {ok,Socket}->
-	    ClientPid!{self(),ok},
-	    session_loop(Socket,ClientPid);
-	{error,Err}->
-	    ClientPid!{self(),{error,[Err,IpAddr,Port]}}
-    end.
+disconnect(Socket)->
+    gen_tcp:close(Socket).
 
-session_loop(Socket,ClientPid)->
-    receive
-	{tcp,Socket,Bin}->
-	    case binary_to_term(Bin) of
-		{?KEY_MSG,R}->
-		    ClientPid!{self(),{msg,R}};
-		Err->
-		    ClientPid!{self(),{error,[Err]}}
-	    end,
-	    session_loop(Socket,ClientPid);
-	{tcp_closed, Socket}->
-	    ClientPid!{self(),{error,[tcp_closed]}};
-	{ClientPid,{call,{M,F,A}}}->
-	    ok=send2(Socket,{M,F,A}),
-	    session_loop(Socket,ClientPid);
-	{ClientPid,{Pod,call,{M,F,A}}}->
-	    ok=send2(Socket,Pod,{M,F,A}),
-	    session_loop(Socket,ClientPid);
-	{ClientPid,{disconnect}}->
-	    gen_tcp:close(Socket)
-    after ?TIMEOUT_TCPCLIENT ->
-	    ClientPid!{self(),{error,[?MODULE,?LINE,tcp_timeout]}}
-    end.
-    
-
-send2(Socket,{M,F,A})->
+cast(Socket,{M,F,A})->
     Msg=case {M,F,A} of
 	    {os,cmd,A}->
 		{?KEY_MSG,call,{?KEY_M_OS_CMD,?KEY_F_OS_CMD,A}};
@@ -116,14 +68,22 @@ send2(Socket,{M,F,A})->
 	end, 
     gen_tcp:send(Socket,term_to_binary(Msg)).
 
-send2(Socket,Pod,{M,F,A})->
-    Msg=case {M,F,A} of
-	    {os,cmd,A}->
-		{?KEY_MSG,Pod,call,{?KEY_M_OS_CMD,?KEY_F_OS_CMD,A}};
-	    {M,F,A}->
-		{?KEY_MSG,Pod,call,{M,F,A}}
-	end, 
-    gen_tcp:send(Socket,term_to_binary(Msg)).
+get_msg(Socket,Timeout)->
+    Result=receive
+	       {tcp,Socket,Bin}->
+		   case binary_to_term(Bin) of
+		       {?KEY_MSG,R}->
+			   R;
+		       Err->
+			   {error,[unmatched,Socket,Err,?MODULE,?LINE]}
+		   end;
+	       {tcp_closed, Socket}->
+		   {error,[tcp_closed,Socket]}	       
+	   after Timeout ->
+		   {error,[tcp_timeout,Socket,?MODULE,?LINE]}
+	   end,
+    Result.
+
 
 %% --------------------------------------------------------------------
 %% Function: 
@@ -136,15 +96,6 @@ call({IpAddr,Port},{M,F,A})->
 		{?KEY_MSG,call,{?KEY_M_OS_CMD,?KEY_F_OS_CMD,A}};
 	    {M,F,A}->
 		{?KEY_MSG,call,{M,F,A}}
-	end,
-    send(IpAddr,Port,Msg).
-
-call({IpAddr,Port},Pod,{M,F,A})->
-    Msg=case {M,F,A} of
-	    {os,cmd,A}->
-		{?KEY_MSG,Pod,call,{?KEY_M_OS_CMD,?KEY_F_OS_CMD,A}};
-	    {M,F,A}->
-		{?KEY_MSG,Pod,call,{M,F,A}}
 	end,
     send(IpAddr,Port,Msg).
 
@@ -176,35 +127,3 @@ send(IpAddr,Port,Msg)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-cast({IpAddr,Port},Pod,{M,F,A})->
-    spawn(fun()->do_cast({IpAddr,Port},Pod,{M,F,A}) end),
-    ok.
-do_cast({IpAddr,Port},Pod,{M,F,A})->
-    Msg=case {M,F,A} of
-	    {os,cmd,A}->
-		{?KEY_MSG,Pod,cast,{?KEY_M_OS_CMD,?KEY_F_OS_CMD,A}};
-	    {M,F,A}->
-		{?KEY_MSG,Pod,cast,{M,F,A}}
-	end,
-  case gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP) of
-	{ok,Socket}->
-	    ok=gen_tcp:send(Socket,term_to_binary(Msg)),
-	    receive
-		{tcp,Socket,Bin}->
-		    Result=case binary_to_term(Bin) of
-			       {?KEY_MSG,R}->
-				   R;
-			       Err->
-				   Err
-			   end,
-		    gen_tcp:close(Socket);
-		{tcp_closed, Socket}->
-		    Result={error,tcp_closed}
-	    after ?TIMEOUT_TCPCLIENT ->
-		    Result={error,[?MODULE,?LINE,tcp_timeout,IpAddr,Port,Msg]},
-		    gen_tcp:close(Socket)
-	    end;
-	{error,Err}->
-	    Result={error,Err}
-    end,
-    Result.

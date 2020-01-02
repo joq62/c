@@ -70,7 +70,7 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 			[{{service,ServiceId},
 			  {dir,Source}}
 			]),
-    R={rpc:call(Pod,TestModule,test,[],1*60*1000),ServiceId,TestModule,?MODULE,?LINE},
+    R={rpc:call(Pod,TestModule,test,[],2*60*1000),ServiceId,TestModule,?MODULE,?LINE},
     io:format("Test result  ~p~n",[R]),
    % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
     container:delete(Pod,PodId,[ServiceId]),

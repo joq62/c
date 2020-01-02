@@ -81,7 +81,7 @@ init([]) ->
     % Update Dns
   %  {DnsIpAddr,DnsPort}=lib_service:dns_address(),
     % dns_service:add(MyServiceId,MyIp,MyPort,MyVm),
-   % tcp_client:call({DnsIpAddr,DnsPort},dns_service,add,[
+  %  tcp_client:call({DnsIpAddr,DnsPort},dns_service,add,[
     {ok, #state{controller_pods=[],sd_pods=[]}}.   
     
 %% --------------------------------------------------------------------

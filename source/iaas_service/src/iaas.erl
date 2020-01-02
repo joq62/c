@@ -97,11 +97,11 @@ do_ping([{IpAddr,Port,Pod,_Status}|T],Acc) ->
     case tcp_client:connect(IpAddr,Port) of
 	{error,Err}->
 	    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,Err]};
-	{ok,PidSession}->
+	{ok,Socket}->
 	   % doesnt work!   rpc:call(node(),tcp_client,session_call,[PidSession,{net_adm,ping,[Pod]}],5000),
 	  %  tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),
-	    tcp_client:session_call(PidSession,Pod,{net_adm,ping,[Pod]}),
-	    case tcp_client:get_msg(PidSession,1000) of
+	    tcp_client:cast(Socket,{net_adm,ping,[Pod]}),
+	    case tcp_client:get_msg(Socket,1000) of
 		pong->
 		    R={ok,{IpAddr,Port,Pod},[]};
 		pang->
@@ -111,7 +111,7 @@ do_ping([{IpAddr,Port,Pod,_Status}|T],Acc) ->
 		Err->
 		    R={error,{IpAddr,Port,Pod},[?MODULE,?LINE,Err]}
 	    end,
-	    tcp_client:disconnect(PidSession)
+	    tcp_client:disconnect(Socket)
       end,
     do_ping(T,[R|Acc]).
   
