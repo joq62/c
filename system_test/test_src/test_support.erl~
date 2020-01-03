@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(adder).
+-module(misc_lib).
   
 
 
@@ -15,27 +15,34 @@
 %% --------------------------------------------------------------------
 
 %% External exports
-
-
--export([add/2
+-export([get_node_by_id/1,get_vm_id/0,get_vm_id/1
 	]).
+	 
+%-compile(export_all).
 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
-
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+get_node_by_id(Id)->
+    {ok,Host}=inet:gethostname(),
+    list_to_atom(Id++"@"++Host).
 
-add(A,B)->
-    A+B.
+get_vm_id()->
+    get_vm_id(node()).
+get_vm_id(Node)->
+    % "NodeId@Host
+    [NodeId,Host]=string:split(atom_to_list(Node),"@"), 
+    {NodeId,Host}.
+    
+    
 %% --------------------------------------------------------------------
 %% Function: 
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-%filter_events(Key

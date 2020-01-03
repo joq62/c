@@ -57,6 +57,7 @@ test()->
 init_test()->
     pod:delete(node(),"pod_lib_1"),
     pod:delete(node(),"pod_lib_2"),
+  pod:delete(node(),"pod_master"),
     {pong,_,lib_service}=lib_service:ping(),
     ok.
     
@@ -87,8 +88,8 @@ start_stop_container()->
     ok=rpc:call(Pod1,lib_service,start_tcp_server,["localhost",50001,parallell],2000),
     {pong,Pod1,lib_service}=tcp_client:call({"localhost",50001},{lib_service,ping,[]}),
     [ok]=container:delete(Pod1,"pod_lib_1",["lib_service"]),
-    {error,econnrefused}=tcp_client:call({"localhost",50001},{lib_service,ping,[]}),
-    {error,econnrefused}=tcp_client:call({"localhost",50001},{lib_service,stop_tcp_server,["localhost",50001]}),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:call({"localhost",50001},{lib_service,ping,[]}),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:call({"localhost",50001},{lib_service,stop_tcp_server,["localhost",50001]}),
     pod:delete(node(),"pod_lib_1"), 
     
    ok.
@@ -131,8 +132,8 @@ tcp_seq_server_start_stop()->
     tcp_client:disconnect(Socket2),
 
     {ok,stopped}=rpc:call(PodServer,lib_service,stop_tcp_server,["localhost",52000],1000),
-    {error,econnrefused}=tcp_client:connect("localhost",52000),
-    {error,econnrefused}=tcp_client:call({"localhost",52000},{erlang,date,[]}),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:connect("localhost",52000),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:call({"localhost",52000},{erlang,date,[]}),
     ok.
 
 tcp_par_server_start_stop()->
@@ -157,17 +158,17 @@ tcp_par_server_start_stop()->
     tcp_client:disconnect(Socket2),
 
     {ok,stopped}=rpc:call(PodServer,lib_service,stop_tcp_server,["localhost",52001],1000),
-    {error,econnrefused}=tcp_client:connect("localhost",52001),
-    {error,econnrefused}=tcp_client:call({"localhost",52001},{erlang,date,[]}),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:connect("localhost",52001),
+    {error,[econnrefused,tcp_client,_]}=tcp_client:call({"localhost",52001},{erlang,date,[]}),
 
-    pod:delete(node(),"pod_lib_1"),
-    pod:delete(node(),"pod_lib_2"),
+   % pod:delete(node(),"pod_lib_1"),
+   % pod:delete(node(),"pod_lib_2"),
     ok.
 
 end_tcp_test()->
-    container:delete('pod_lib_1@asus.com',"pod_adder_1",["lib_service"]),
+    container:delete('pod_lib_1@asus.com',"pod_lib_1",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_lib_1"),
-    container:delete('pod_lib_2@asus.com',"pod_adder_2",["lib_service"]),
+    container:delete('pod_lib_2@asus.com',"pod_lib_2",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_lib_2"),
     ok.
 

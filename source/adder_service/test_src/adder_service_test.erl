@@ -10,12 +10,12 @@
 %% Include files
 %% --------------------------------------------------------------------
 % -include_lib("eunit/include/eunit.hrl").
-
+-include("test_src/common_macros.hrl").
 %% --------------------------------------------------------------------
 
 %% External exports
 -export([test/0,init_test/0,
-	 start_master_adder/0,
+	 start_adder/0,
 	 adder_1_test/0,
 	 adder_2_test/0,
 	 cleanup/0
@@ -30,8 +30,8 @@
 -define(TIMEOUT,1000*15).
 test()->
     TestList=[init_test,
-	      start_master_adder,
-	    %  adder_1_test,
+	      start_adder,
+	      adder_1_test,
 	    %  adder_2_test,
 	      cleanup 
 	     ],
@@ -56,42 +56,29 @@ test()->
 init_test()->
    % pod:delete(node(),"pod_master"),
    % timer:sleep(100),
-   % pod:delete(node(),"pod_adder_1"),
+    pod:delete(node(),"pod_adder_1"),
    % timer:sleep(100),
-    application:start(lib_service),
+    Pod=tcp_client:call(?DNS_ADDRESS,{erlang,node,[]}),
+    {pong,Pod,lib_service}=tcp_client:call(?DNS_ADDRESS,{lib_service,ping,[]}),
+    {pong,Pod,dns_service}=tcp_client:call(?DNS_ADDRESS,{dns_service,ping,[]}),
     ok.
     
 %------------------  -------
 %create_container(Pod,PodId,[{{service,ServiceId},{Type,Source}}
 
-start_master_adder()->
-    {ok,PodMaster}=pod:create(node(),"pod_master"),
-    ok=container:create(PodMaster,"pod_master",
-			[{{service,"lib_service"},
-			  {dir,"/home/pi/erlang/c/source"}}
-			]), 
- %   timer:sleep(100),
-    ok=container:create(PodMaster,"pod_master",
-			[{{service,"dns_service"},
-			  {dir,"/home/pi/erlang/c/source"}}
-			]), 
-  %  timer:sleep(100),
-    {DnsIpAddr,DnsPort}=lib_service:dns_address(),   
-    {pong,_,_}=rpc:call(PodMaster,lib_service,ping,[],2000),
-    {pong,_,_}=rpc:call(PodMaster,dns_service,ping,[],2000),
-    {"localhost",42000}={DnsIpAddr,DnsPort},
-    ok=rpc:call(PodMaster,lib_service,start_tcp_server,[DnsIpAddr,DnsPort,parallell],2000),
-   % ok=rpc:call(PodMaster,lib_service,start_tcp_server,["localhost",42000,parallell],2000),
-  %  {pong,_,dns_service}=tcp_client:call({DnsIpAddr,DnsPort},{dns_service,ping,[]}),
-
+start_adder()->
     {ok,Pod1}=pod:create(node(),"pod_adder_1"),
     ok=container:create(Pod1,"pod_adder_1",
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
 			]), 
-    %timer:sleep(100),
+    %
+    %glurk=rpc:call(Pod1,lib_service,ping,[]),
     ok=rpc:call(Pod1,lib_service,start_tcp_server,["localhost",50000,parallell],2000),
+    timer:sleep(100),
     {pong,_,lib_service}=tcp_client:call({"localhost",50000},{lib_service,ping,[]}),
+    {"localhost",50000}=tcp_client:call({"localhost",50000},{lib_service,myip,[]}),
+  %  glurk=tcp_client:call({"localhost",50000},{lib_service,myip,[]}),
     ok=container:create(Pod1,"pod_adder_1",
 			[{{service,"adder_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
@@ -100,28 +87,23 @@ start_master_adder()->
     A=rpc:call(Pod1,adder_service,start_result,[],2000),
     io:format("star_result ~p~n",[A]),
     {pong,_,adder_service}=tcp_client:call({"localhost",50000},{adder_service,ping,[]}),
-
-
-   ok.
+    ok.
 
 adder_1_test()->
-    {DnsIpAddr,DnsPort}=lib_service:dns_address(),
-    glurk=tcp_client:call({DnsIpAddr,DnsPort},{dns_service,ping,[]}),
-    
-    
+    glurk=?DNS_ADDRESS,
+    Y=tcp_client:call(?DNS_ADDRESS,{dns_service,get,["adder_service"]}),
+    glurk=Y,
     ok.
 
 
 adder_2_test()->
-    % expired test
-   
+    % expired test   
     ok.
 
 
 
 cleanup()->
     {ok,stopped}=pod:delete(node(),"pod_adder_1"),   
-    {ok,stopped}=pod:delete(node(),"pod_master"),
     ok.
 
 

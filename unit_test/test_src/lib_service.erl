@@ -27,7 +27,8 @@
 
 
 
--export([start_tcp_server/3,stop_tcp_server/2,
+-export([start_tcp_server/2,start_tcp_server/3,
+	  stop_tcp_server/1,stop_tcp_server/2,
 	 ping/0,
 	 dns_address/0,
 	 myip/0
@@ -67,9 +68,13 @@ ping()->
 myip()->
     gen_server:call(?MODULE, {myip},infinity).
 
+start_tcp_server({IpAddr,Port},Mode)->
+    gen_server:call(?MODULE, {start_tcp_server,IpAddr,Port,Mode},infinity).
 start_tcp_server(IpAddr,Port,Mode)->
     gen_server:call(?MODULE, {start_tcp_server,IpAddr,Port,Mode},infinity).
 
+stop_tcp_server({IpAddr,Port})->
+    gen_server:call(?MODULE, {stop_tcp_server,IpAddr,Port},infinity).
 stop_tcp_server(IpAddr,Port)->
     gen_server:call(?MODULE, {stop_tcp_server,IpAddr,Port},infinity).
 %%-----------------------------------------------------------------------
@@ -174,7 +179,7 @@ handle_call({myip}, _From, State) ->
     TcpServers=State#state.tcp_servers,
     Reply=case TcpServers of
 	      []->
-		  {error,[not_started,?MODULE,?LINE]};
+		  {error,[myip,not_started,?MODULE,?LINE]};
 	      [{IpAddr,Port,_Mode,_Server}]->
 		  {IpAddr,Port}
 	  end,

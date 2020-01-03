@@ -40,8 +40,14 @@
 %% Returns: {ok,Socket}|{error,Err}
 %% --------------------------------------------------------------------
 connect(IpAddr,Port)->
-   gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP).
-
+    Result=case gen_tcp:connect(IpAddr,Port,?CLIENT_SETUP) of
+	       {ok,Socket}->
+		   {ok,Socket};
+	       {error,Err} ->
+		   {error,[Err,?MODULE,?LINE]}
+	   end,
+    Result.
+    
 connect(IpAddr,Port,Timeout)->
     Client=self(),
     Pid=spawn(fun()->connect_timeout(IpAddr,Port,Client) end),
@@ -109,16 +115,16 @@ send(IpAddr,Port,Msg)->
 			       {?KEY_MSG,R}->
 				   R;
 			       Err->
-				   Err
+				   {error,[Err,?MODULE,?LINE]}
 			   end;
 		{tcp_closed, Socket}->
 		    Result={error,tcp_closed}
 	    after ?TIMEOUT_TCPCLIENT ->
-		    Result={error,[?MODULE,?LINE,tcp_timeout,IpAddr,Port,Msg]}
+		    Result={error,[tcp_timeout,IpAddr,Port,Msg],?MODULE,?LINE}
 	    end,
 	    ok=gen_tcp:close(Socket);
 	{error,Err}->
-	    Result={error,Err}
+	    Result={error,[Err,?MODULE,?LINE]}
     end,
    Result.
 			   

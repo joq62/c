@@ -10,7 +10,7 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-
+-include("common_macros.hrl").
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
@@ -22,21 +22,15 @@
 
 %% --------------------------------------------------------------------
 %% Definitions 
--define(HB_INTERVAL,1*20*1000).
--define(NODE_CONFIG,"node.config").
-
--define(DNS_PUBLIC,{"joqhome.dynamic-dns.net",42000}).
--define(DNS_PRIVATE,{"192.168.0.100",42000}).
--define(DNS_LOCALHOST,{"localhost",42000}).
--define(DNS_LIST,[?DNS_PUBLIC,?DNS_PRIVATE,?DNS_LOCALHOST]).
 %% --------------------------------------------------------------------
 
 
 
 
--export([start_tcp_server/3,stop_tcp_server/2,
+-export([start_tcp_server/2,start_tcp_server/3,
+	  stop_tcp_server/1,stop_tcp_server/2,
 	 ping/0,
-	 dns_address/0,dns_address/1,%glurk/0,
+	 dns_address/0,
 	 myip/0
 	]).
 
@@ -66,17 +60,21 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 %%-----------------------------------------------------------------------
 
-%dns_address()->
- %   gen_server:call(?MODULE, {dns_address},infinity).
+dns_address()->
+    gen_server:call(?MODULE, {dns_address},infinity).
 
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
 myip()->
     gen_server:call(?MODULE, {myip},infinity).
 
+start_tcp_server({IpAddr,Port},Mode)->
+    gen_server:call(?MODULE, {start_tcp_server,IpAddr,Port,Mode},infinity).
 start_tcp_server(IpAddr,Port,Mode)->
     gen_server:call(?MODULE, {start_tcp_server,IpAddr,Port,Mode},infinity).
 
+stop_tcp_server({IpAddr,Port})->
+    gen_server:call(?MODULE, {stop_tcp_server,IpAddr,Port},infinity).
 stop_tcp_server(IpAddr,Port)->
     gen_server:call(?MODULE, {stop_tcp_server,IpAddr,Port},infinity).
 %%-----------------------------------------------------------------------
@@ -116,10 +114,13 @@ init([]) ->
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
 handle_call({dns_address}, _From, State) ->
-    L=[?DNS_PUBLIC,?DNS_PRIVATE,?DNS_LOCALHOST],
-   % L=[?DNS_PRIVATE,?DNS_LOCALHOST],
-    Reply=[tcp_client:call(Ip,{dns_service,ping,[]})||Ip<-L],
-    %Reply=State#state.dns_address,
+  %  Reply=case tcp_client:call(?DNS_ADDRESS,{dns_service,ping,[]}) of
+%	      {pong,_,_}->
+%		  ?DNS_ADDRESS;
+%	      Err->
+%		  {error,[eexists,dns_service,?DNS_ADDRESS,Err,?MODULE,?LINE]}
+%	  end,
+    Reply=?DNS_ADDRESS,
     {reply, Reply,State};
 
 
@@ -178,7 +179,7 @@ handle_call({myip}, _From, State) ->
     TcpServers=State#state.tcp_servers,
     Reply=case TcpServers of
 	      []->
-		  {error,[not_started,?MODULE,?LINE]};
+		  {error,[myip,not_started,?MODULE,?LINE]};
 	      [{IpAddr,Port,_Mode,_Server}]->
 		  {IpAddr,Port}
 	  end,
@@ -262,31 +263,3 @@ h_beat(Interval)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-dns_address()->
-    dns_address(2000).
-dns_address(Timeout)->
-   {IpAddrPublic,PortPublic}=?DNS_PUBLIC,
-    Reply=case tcp_client:connect(IpAddrPublic,PortPublic,Timeout) of
-	      {error,_} ->
-		  {IpAddrPrivate,PortPrivate}=?DNS_PRIVATE,
-		  case tcp_client:connect(IpAddrPrivate,PortPrivate,Timeout) of
-		      {error,_}->
-			  {IpAddrLocal,PortLocal}=?DNS_LOCALHOST,
-			  case tcp_client:connect(IpAddrLocal,PortLocal,Timeout) of
-			      {error,_}->
-				  {error,[eexists,dns_service,?MODULE,?LINE]};
-			      {ok,PidSession}->
-				  tcp_client:disconnect(PidSession),
-				  ?DNS_LOCALHOST
-			  end;
-		      {ok,PidSession}->
-			  tcp_client:disconnect(PidSession),
-			  ?DNS_PRIVATE
-		  end;
-	      {badrpc,Err}->
-		  {error,[badrpc,?MODULE,?LINE,Err]};
-	      {ok,PidSession}->
-		  tcp_client:disconnect(PidSession),
-		  ?DNS_PUBLIC
-	  end,
-    Reply.

@@ -48,7 +48,7 @@ test()->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_test()->
-    {pong,_,iaas_service}=iaas_service:ping(),
+    {pong,_,lib_service}=lib_service:ping(),
     ok.
     
 

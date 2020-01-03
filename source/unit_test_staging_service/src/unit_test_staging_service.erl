@@ -4,7 +4,7 @@
 %%%  
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(adder_service). 
+-module(unit_test_staging_service). 
 
 -behaviour(gen_server).
 %% --------------------------------------------------------------------
@@ -17,7 +17,7 @@
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
--record(state,{start_result,myip,dns_address,dns_socket}).
+-record(state,{}).
 
 %% Definitions 
 
@@ -26,14 +26,13 @@
 
 
 
--export([add/2,
-	 start_result/0
+-export([
 	]).
 
 -export([start/0,
 	 stop/0,
-	 ping/0,
-	 heart_beat/1
+	 ping/0
+	 
 	]).
 
 %% gen_server callbacks
@@ -56,18 +55,14 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
-start_result()->
-    gen_server:call(?MODULE, {start_result},infinity).
+
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
 
-add(A,B)->
-    gen_server:call(?MODULE, {add,A,B},infinity).
 
 
 %%-----------------------------------------------------------------------
-heart_beat(Interval)->
-    gen_server:cast(?MODULE, {heart_beat,Interval}).
+
 
 
 %% ====================================================================
@@ -84,19 +79,8 @@ heart_beat(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
-    % Update Dns
-    Start=case rpc:call(node(),lib_service,dns_address,[],5000) of
-	      {error,Err}->
-		   {ok, #state{start_result= {error,Err}}};
-	      {DnsIpAddr,DnsPort}->
-		   {MyIpAddr,MyPort}=lib_service:myip(),
-		   {ok,Socket}=tcp_client:connect(DnsIpAddr,DnsPort),
-		   ok=rpc:call(node(),tcp_client,cast,[Socket,{dns_service,add,[atom_to_list(?MODULE),MyIpAddr,MyPort,node()]}]),
-	%	  spawn(fun()->h_beat(?HB_TIMEOUT) end),  
-		  {ok, #state{myip={MyIpAddr,MyPort},dns_address={DnsIpAddr,DnsPort},
-			      dns_socket=Socket}}
-	  end,   
-    Start.
+
+      {ok, #state{}}.
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
@@ -108,21 +92,13 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
-handle_call({start_result}, _From, State) ->
-     Reply=State#state.start_result,
-    {reply, Reply, State};
-
 handle_call({ping}, _From, State) ->
      Reply={pong,node(),?MODULE},
     {reply, Reply, State};
 
-handle_call({add,A,B}, _From, State) ->
-     Reply=rpc:call(node(),adder,add,[A,B]),
-    {reply, Reply, State};
 
 
 handle_call({stop}, _From, State) ->
-    tcp_client:disconnect(State#state.dns_socket),
     {stop, normal, shutdown_ok, State};
 
 handle_call(Request, From, State) ->
@@ -136,12 +112,6 @@ handle_call(Request, From, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_cast({heart_beat,Interval}, State) ->
-    {MyIpAddr,MyPort}=State#state.myip,
-    tcp_client:cast(State#state.dns_socket,{dns_service,add,[atom_to_list(?MODULE),MyIpAddr,MyPort,node()]}),
-    
-    spawn(fun()->h_beat(Interval) end),      
-    {noreply, State};
 
 handle_cast(Msg, State) ->
     io:format("unmatched match cast ~p~n",[{?MODULE,?LINE,Msg}]),
@@ -183,9 +153,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-h_beat(Interval)->
-    timer:sleep(Interval),
-    rpc:cast(node(),?MODULE,heart_beat,[Interval]).
 
 %% --------------------------------------------------------------------
 %% Internal functions

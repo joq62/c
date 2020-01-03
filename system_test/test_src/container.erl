@@ -9,7 +9,7 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
--include_lib("eunit/include/eunit.hrl").
+-include("common_macros.hrl").
 
 %% --------------------------------------------------------------------
 -define(GITHUB,"/home/pi/erlang/a/source").
@@ -196,7 +196,7 @@ do_compile(Pod,PodId,ServiceId,PathSrc,PathEbin)->
 		   % clean up ebin dir
 		   case rpc:call(Pod,os,cmd,["rm -rf "++PathEbin++"/*"]) of
 		       []->
-			   CompileResult=[{rpc:call(Pod,c,c,[ErlFile,[{outdir,PathEbin}]],5000),ErlFile}||ErlFile<-FilesToCompile],
+			   CompileResult=[{rpc:call(Pod,c,c,[ErlFile,[{outdir,PathEbin},{i,PathSrc},?COMPILER]],5000),ErlFile}||ErlFile<-FilesToCompile],
 			   case [{R,File}||{R,File}<-CompileResult,error==R] of
 			       []->
 				   AppFileSrc=filename:join(PathSrc,ServiceId++".app"),

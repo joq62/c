@@ -9,13 +9,21 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-
+-include("common_macros.hrl").
 
 %% --------------------------------------------------------------------
-
+-ifdef(local).
+-define(LIB_SERVICE_SRC,{dir,"/home/pi/erlang/c/source"}).
+-endif.
+-ifdef(private).
+-define(LIB_SERVICE_SRC,{dir,"/home/pi/erlang/c/source"}).
+-endif.
+-ifdef(public).
+-define(LIB_SERVICE_SRC,{url,path_to_github}).
+-endif.
 %% External exports
 
--export([start/0]).
+-export([start/0,start/1]).
 
 
 %% ====================================================================
@@ -27,9 +35,11 @@
 %% Returns: non
 %% --------------------------------------------------------------------
 
--define(UNIT_TEST_SPEC,"unit_test.spec").
+-define(TEST_SPEC,"unit_test.spec").
 
 start()->
+    start(?TEST_SPEC).
+start(TestSpec)->
     
     % Each unit test creates its own test vms
     % load lib_service + application to test
@@ -39,14 +49,16 @@ start()->
     PodId="pod_test_1",
     pod:delete(node(),PodId),
     {ok,Pod}=pod:create(node(),PodId),
-    {ok,I}=file:consult(?UNIT_TEST_SPEC),
+    {ok,I}=file:consult(TestSpec),
+ %   Pod=node(),
+  %  [PodId,_Host]=string:split(atom_to_list(node()),"@"), 
     Result=do_unit_test(I,Pod,PodId,[]),
     io:format(" ~n"),
     io:format("~p ",[time()]),
     io:format(": Result ~n"),
     [io:format("~p~n",[R])||R<-Result],
     io:format(" ~n"),
-    pod:delete(node(),PodId),
+ %   pod:delete(node(),PodId),
     init:stop(),
     ok.
 
@@ -60,20 +72,35 @@ do_unit_test([],_Pod,_PodId,Result)->
     Result;
 do_unit_test([Info|T],Pod,PodId,Acc) ->
     {{service2test,ServiceId},{src_dir,Source},
-     {test_module,TestModule},{preload,_Applications}}=Info,
+     {test_module,TestModule},{preload,_PreLoad}}=Info,
     io:format(" ~n"),
     io:format("~p",[time()]),
-    io:format(": Testing  ~p~n",[ServiceId]),
+    io:format(": Testing  ~p~n",[TestModule]),
     io:format(" ~n"),
-  %   io:format("ping  ~p~n",[{net_adm:ping(Pod)}]),
+    if 
+	ServiceId/="lib_service"->
+	    ok=container:create(Pod,PodId,
+				[{{service,"lib_service"},
+				  ?LIB_SERVICE_SRC}
+				]);
+	true ->
+	    ok
+    end,
     ok=container:create(Pod,PodId,
 			[{{service,ServiceId},
 			  {dir,Source}}
 			]),
     R={rpc:call(Pod,TestModule,test,[],2*60*1000),ServiceId,TestModule,?MODULE,?LINE},
     io:format("Test result  ~p~n",[R]),
-   % io:format("delete conatiern   ~p~n",[{Pod,PodId,[ServiceId]}]),
+    container:delete(Pod,PodId,["lib_service"]),
     container:delete(Pod,PodId,[ServiceId]),
+  %  case PreLoad of
+%	false->
+	 %   container:delete(Pod,PodId,["lib_service"]),
+%	    container:delete(Pod,PodId,[ServiceId]);
+%	true->
+%	    ok
+%	end,
     do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).
 
 %% --------------------------------------------------------------------
