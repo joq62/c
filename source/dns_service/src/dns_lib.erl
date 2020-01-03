@@ -12,15 +12,12 @@
 %% Include files
 %% --------------------------------------------------------------------
 % -ifdef(unit_test).
--ifdef(local).
+-ifdef(unit_test).
 -define(EXPIRED_TIME,1).
--endif.
--ifdef(private).
--define(EXPIRED_TIME,1).
--endif.
--ifdef(public).
+-else.
 -define(EXPIRED_TIME,50).
 -endif.
+
 -include("common_macros.hrl").
 %% --------------------------------------------------------------------
 %-record(dns,{service_id,ip_addr,port,vm,timestamp}).

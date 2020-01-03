@@ -10,24 +10,24 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
--include("common_macros.hrl").
+
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
--record(state,{start_result,myip,dns_address,dns_socket}).
+-record(state,{myip,dns_address,dns_socket}).
 
 %% Definitions 
-
+-define(HB_INTERVAL,1*20*1000).
+-define(NODE_CONFIG,"node.config").
 %% --------------------------------------------------------------------
 
 
 
 
--export([add/2,
-	 start_result/0
+-export([add/2
 	]).
 
 -export([start/0,
@@ -56,8 +56,6 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
-start_result()->
-    gen_server:call(?MODULE, {start_result},infinity).
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
 
@@ -85,31 +83,19 @@ heart_beat(Interval)->
 %% --------------------------------------------------------------------
 init([]) ->
     % Update Dns
-    timer:sleep(5000),
-    Start=case rpc:call(node(),lib_service,dns_address,[],500) of
+    Start=case lib_service:dns_address() of
 	      {error,Err}->
-		  {ok, #state{start_result= {error,Err}}};
+		  {error, #state{myip=Err}};
 	      {DnsIpAddr,DnsPort}->
-		  Y=rpc:call(node(),lib_service,myip,[],500),
-	%	  {MyIpAddr,MyPort}=Y,
-		 % {MyIpAddr,MyPort}=lib_service:myip(),
-		  {_,Socket}=rpc:call(node(),tcp_client,connect,[DnsIpAddr,DnsPort],2000),
-		 % {_,Socket}=tcp_client:connect(DnsIpAddr,DnsPort),
-		%  Y=glurk,
-		 % Z=rpc:call(node(),tcp_client,connect,[DnsIpAddr,DnsPort],2000),
-		 % {Y,_}=Z,
-		 % ok=Y,
-		%  {ok,Socket}=rpc:call(node(),tcp_client,connect,[DnsIpAddr,DnsPort],2000),
-		  Z=rpc:call(node(),tcp_client,cast,[Socket,{dns_service,add,[atom_to_list(?MODULE),"localhost",50000,node()]}]),
-		  %spawn(fun()->h_beat(?HB_TIMEOUT) end),  
-		 % {ok, #state{myip={MyIpAddr,MyPort},dns_address={DnsIpAddr,DnsPort},
-		%	      dns_socket=Socket}};
-		  {ok, #state{start_result={Y,Z}}};
-	      X ->
-		  {ok, #state{start_result={X,?LINE}}} 		  
+		  {MyIpAddr,MyPort}=lib_service:myip(),
+		  {ok,Socket}=tcp_client:connect(DnsIpAddr,DnsPort),
+		  tcp_client:cast(Socket,{dns_service,add,[atom_to_list(?MODULE),MyIpAddr,MyPort,node()]}),
+		  spawn(fun()->h_beat(?HB_INTERVAL) end),  
+		  {ok, #state{myip={MyIpAddr,MyPort},dns_address={DnsIpAddr,DnsPort},
+			     dns_socket=Socket}}
+
 	  end,   
     Start.
-  %    {ok, #state{}}.
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
@@ -121,10 +107,6 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
-handle_call({start_result}, _From, State) ->
-     Reply=State#state.start_result,
-    {reply, Reply, State};
-
 handle_call({ping}, _From, State) ->
      Reply={pong,node(),?MODULE},
     {reply, Reply, State};

@@ -109,12 +109,13 @@ init([]) ->
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
 handle_call({dns_address}, _From, State) ->
-    Reply=case tcp_client:call(?DNS_ADDRESS,{dns_service,ping,[]}) of
-	      {pong,_,_}->
-		  ?DNS_ADDRESS;
-	      Err->
-		  {error,[eexists,dns_service,?DNS_ADDRESS,Err,?MODULE,?LINE]}
-	  end,
+  %  Reply=case tcp_client:call(?DNS_ADDRESS,{dns_service,ping,[]}) of
+%	      {pong,_,_}->
+%		  ?DNS_ADDRESS;
+%	      Err->
+%		  {error,[eexists,dns_service,?DNS_ADDRESS,Err,?MODULE,?LINE]}
+%	  end,
+    Reply=?DNS_ADDRESS,
     {reply, Reply,State};
 
 

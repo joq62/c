@@ -12,7 +12,7 @@ all:
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/log_service/src;
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/master_service/src;
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/dns_service/src;
-	erlc -D unit_test -D local -I /home/pi/erlang/c/source/include  -o test_ebin test_src/*.erl;
+	erlc  -D unit_test -D local -I /home/pi/erlang/c/source/include  -o test_ebin test_src/*.erl;
 	erl -pa test_ebin -pa * -s unit_test_all start -sname unit_test_all
 unit:
 	rm -rf test_src/*~ test_src/*.beam *.dump;
@@ -28,5 +28,5 @@ unit:
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/log_service/src;
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/master_service/src;
 	cp /home/pi/erlang/c/source/include/*.hrl /home/pi/erlang/c/source/dns_service/src;
-	erlc -D local -D unit_test  -I /home/pi/erlang/c/source/include -o test_ebin test_src/*.erl;
+	erlc -D unit_test -D local  -I /home/pi/erlang/c/source/include -o test_ebin test_src/*.erl;
 	erl -pa test_ebin -pa * -pa -s unit_test start -sname unit_test
