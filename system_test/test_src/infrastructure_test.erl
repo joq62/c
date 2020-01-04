@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(infrastructure). 
+-module(infrastructure_test). 
   
 %% --------------------------------------------------------------------
 %% Include files
@@ -37,34 +37,22 @@ start()->
     io:format("~p",[time()]),
     io:format(" Test started :~p~n",[{?MODULE,start}]),
     io:format(" ~n"),
-
-    [{computers,ComputerList}]=system_test:get(computers),
-    [{lib_service,LibService}]=system_test:get(lib_service),
-    PodList=[{pod:create(node(),ComputerId),ComputerId}||{ComputerId,_Computer,_IpAddr,_Port}<-ComputerList],
-    PongList=[rpc:call(node(),net_adm,ping,[Computer])||{{ok,Computer},_ComputerId}<-PodList],
-	  % Check if all are pong
-    true=lists:flatlength(PongList)==lists:flatlength([pong||pong<-PongList]),
-	  % Pods running and ok 
-    
-	  % Start lib_service on all nodes
-    [container:create(Computer,ComputerId,LibService)||{{ok,Computer},ComputerId}<-PodList],
-          %Check if lib_service started on all 
-    LibServicePing=[rpc:call(Computer,lib_service,ping,[],2000)||{{ok,Computer},_ComputerId}<-PodList],
-    true=lists:flatlength(LibServicePing)==lists:flatlength([pong||{pong,_,lib_service}<-LibServicePing]),
-          %Lib_service OK  
-
-          % Allocate a tcp Server per Computer
-    
-    [rpc:call(Computer,lib_service,start_tcp_server,[IpAddr,Port,parallell])||{_ComputerId,Computer,IpAddr,Port}<-ComputerList],
-    TcpServerPing=[rpc:call(node(),tcp_client,call,[{IpAddr,Port},{lib_service,ping,[]}])||{_ComputerId,_Computer,IpAddr,Port}<-ComputerList],
-    true=lists:flatlength(TcpServerPing)==lists:flatlength([pong||{pong,_,lib_service}<-TcpServerPing]), 
-    % computers started and lib_service installed
+    test(5),
 
     io:format(" ~n"),
     io:format("~p",[time()]),
     io:format("  OK :~p~n",[{?MODULE,start}]),
     io:format(" ~n"),
     ok.
+test(0)->
+    ok;
+test(N) ->
+    io:format("N = ~p~n",[N]),
+    rpc:call(node(),infrastructure,start,[]),
+    timer:sleep(50),
+    rpc:call(node(),infrastructure,stop,[]),
+    timer:sleep(50),
+    test(N-1).
 
 stop()->
     io:format(" ~n"),

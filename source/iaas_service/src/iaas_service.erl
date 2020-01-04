@@ -26,7 +26,8 @@
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
--record(state,{active,inactive}).
+-record(state,{myip,dns_address,dns_socket,
+	       active,inactive}).
 
 
 	  
@@ -154,13 +155,17 @@ check_boards(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
-    % Connect to all nodes - ensure that they are in dist erlang
-    iaas:init(),
- %   spawn(fun()->do_poll(?POLL_INTERVAL) end),
-  %  {{active,ActiveBoards},{inactive,InActive}}=iaas:active_boards(),
-    io:format("Dbg ~p~n",[{?MODULE, application_started}]),
- %   {ok, #state{active=ActiveBoards,inactive=InActive}}.
-    {ok, #state{}}.
+       % Initiated the app
+    {ok,[{MyIpAddr,MyPort},
+	 {DnsIpAddr,DnsPort},
+	 Socket
+	]}=misc_lib:app_start(?MODULE),
+    iaas:init(),	
+    % spawn(fun()->do_poll(?POLL_INTERVAL) end),
+    
+    {ok, #state{myip={MyIpAddr,MyPort},
+		dns_address={DnsIpAddr,DnsPort},
+		dns_socket=Socket}}.
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3

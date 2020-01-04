@@ -14,7 +14,7 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--export([start/0,
+-export([start/0,start/1,
 	get/1,delete/1,all/0,test_ets/0
 	]).
 
@@ -33,6 +33,8 @@
 -define(TEST_SPEC,"system_test.spec").
 -define(ETS,system_test_ets).
 start()->
+    start(?TEST_SPEC).
+start(TestSpec)->
 
     io:format("  ~n"),
     io:format(" ***************** ~p",[time()]),
@@ -41,7 +43,7 @@ start()->
 
     % Need to load start lib_service
     application:start(lib_service),
-    ets_init(),
+    ets_init(TestSpec),
     [{test_files,TestFiles}]=system_test:get(test_files),
     TestResult=[do_test(M,F)||{M,F}<-TestFiles],
     io:format("  ~n"),
@@ -67,9 +69,9 @@ do_test(M,F)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-ets_init()->
+ets_init(TestSpec)->
     ets:new(?ETS, [bag, named_table]),
-    Result=case file:consult(?TEST_SPEC) of
+    Result=case file:consult(TestSpec) of
 	       {ok,I}->
 		   add(lists:keyfind(computers,1,I)),
 		   add(lists:keyfind(lib_service,1,I)),

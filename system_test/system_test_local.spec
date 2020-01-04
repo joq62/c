@@ -1,8 +1,8 @@
 {test_files,[{infrastructure,stop},
 	     {infrastructure,start},
-	     {loader,start},
+	      {loader,start},
 	     {init_iaas,start},
-	     {dns,start},
+	     {dns,start},	     
 	     {infrastructure,stop}
 	    ]}.
 

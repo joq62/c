@@ -17,7 +17,7 @@
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
--record(state,{start_result,myip,dns_address,dns_socket}).
+-record(state,{myip,dns_address,dns_socket}).
 
 %% Definitions 
 
@@ -26,8 +26,7 @@
 
 
 
--export([add/2,
-	 start_result/0
+-export([add/2
 	]).
 
 -export([start/0,
@@ -56,8 +55,7 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 
 %%-----------------------------------------------------------------------
-start_result()->
-    gen_server:call(?MODULE, {start_result},infinity).
+
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
 
@@ -85,19 +83,18 @@ heart_beat(Interval)->
 %% --------------------------------------------------------------------
 init([]) ->
     % Update Dns
-    Start=case rpc:call(node(),lib_service,dns_address,[],5000) of
-	      {error,Err}->
-		   {ok, #state{start_result= {error,Err}}};
-	      {DnsIpAddr,DnsPort}->
-		   {MyIpAddr,MyPort}=lib_service:myip(),
-		   {ok,Socket}=tcp_client:connect(DnsIpAddr,DnsPort),
-		   ok=rpc:call(node(),tcp_client,cast,[Socket,{dns_service,add,[atom_to_list(?MODULE),MyIpAddr,MyPort,node()]}]),
-	%	  spawn(fun()->h_beat(?HB_TIMEOUT) end),  
-		  {ok, #state{myip={MyIpAddr,MyPort},dns_address={DnsIpAddr,DnsPort},
-			      dns_socket=Socket}}
-	  end,   
-    Start.
+     % Initiated the app
+    {ok,[{MyIpAddr,MyPort},
+	 {DnsIpAddr,DnsPort},
+	 Socket
+	]}=misc_lib:app_start(?MODULE),
+    %% Add service specific init 
+   
+     % spawn(fun()->do_poll(?POLL_INTERVAL) end),
     
+    {ok, #state{myip={MyIpAddr,MyPort},
+		dns_address={DnsIpAddr,DnsPort},
+		dns_socket=Socket}}.
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
 %% Description: Handling call messages
@@ -108,10 +105,6 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
-handle_call({start_result}, _From, State) ->
-     Reply=State#state.start_result,
-    {reply, Reply, State};
-
 handle_call({ping}, _From, State) ->
      Reply={pong,node(),?MODULE},
     {reply, Reply, State};

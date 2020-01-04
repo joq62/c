@@ -15,7 +15,8 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--export([get_node_by_id/1,get_vm_id/0,get_vm_id/1
+-export([get_node_by_id/1,get_vm_id/0,get_vm_id/1,
+	 app_start/1
 	]).
 	 
 %-compile(export_all).
@@ -46,3 +47,17 @@ get_vm_id(Node)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+app_start(Module)->
+    Result=case rpc:call(node(),lib_service,dns_address,[],5000) of
+	      {error,Err}->
+		   {error,[eexists,dns_address,Err,?MODULE,?LINE]};
+	      {DnsIpAddr,DnsPort}->
+		   {MyIpAddr,MyPort}=lib_service:myip(),
+		   {ok,Socket}=tcp_client:connect(DnsIpAddr,DnsPort),
+		   ok=rpc:call(node(),tcp_client,cast,[Socket,{dns_service,add,[atom_to_list(Module),MyIpAddr,MyPort,node()]}]),
+		   {ok,[{MyIpAddr,MyPort},{DnsIpAddr,DnsPort},Socket]};
+	       Err ->
+		   {error,[unmatched,Err,?MODULE,?LINE]}
+	  end,   
+    Result.
+    

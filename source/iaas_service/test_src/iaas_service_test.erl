@@ -9,8 +9,8 @@
 %% --------------------------------------------------------------------
 %% Include files
 %% --------------------------------------------------------------------
-% -include_lib("eunit/include/eunit.hrl").
 
+-include("test_src/common_macros.hrl").
 %% --------------------------------------------------------------------
 
 %% External exports
@@ -33,6 +33,7 @@
 %% ====================================================================
 -define(TIMEOUT,1000*15).
 test()->
+    io:format("~p~n",[{?MODULE,?LINE}]),
     TestList=[init_test,
 	      init_start_computers_and_tcp_servers,
 	      add_active_passive_status,
@@ -48,13 +49,15 @@ test()->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_test()->
+    io:format("~p~n",[{?MODULE,?LINE}]),
+    pod:delete(node(),"pod_dns_test"),
     {pong,_,lib_service}=lib_service:ping(),
     ok.
     
 
 %**************************** tcp test   ****************************
 init_start_computers_and_tcp_servers()->
-    {ok,Computer_1}=pod:create(node(),"pod_computer_1"),
+      {ok,Computer_1}=pod:create(node(),"pod_computer_1"),
     ok=container:create(Computer_1,"pod_computer_1",
 			[{{service,"lib_service"},
 			  {dir,"/home/pi/erlang/c/source"}}
@@ -237,6 +240,11 @@ cleanup()->
     Computer_3=misc_lib:get_node_by_id("pod_computer_3"),
     container:delete(Computer_3,"pod_computer_3",["lib_service"]),
     {ok,stopped}=pod:delete(node(),"pod_computer_3"),
+
+    PodDns=misc_lib:get_node_by_id("pod_dns_test"),
+    container:delete(PodDns,"pod_dns_test",["dns_service"]),
+    container:delete(PodDns,"pod_dns_test",["lib_service"]),
+    {ok,stopped}=pod:delete(node(),"pod_dns_test"),
 
     ok.
 

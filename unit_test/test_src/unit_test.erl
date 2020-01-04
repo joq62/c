@@ -47,6 +47,7 @@ start(TestSpec)->
     %  {test_module,unit_test_lib_service},{preload,[]}}
     % Create pod to load application to test
     PodId="pod_test_1",
+    pod:delete(node(),"pod_dns_test"),
     pod:delete(node(),PodId),
     {ok,Pod}=pod:create(node(),PodId),
     {ok,I}=file:consult(TestSpec),
@@ -58,7 +59,7 @@ start(TestSpec)->
     io:format(": Result ~n"),
     [io:format("~p~n",[R])||R<-Result],
     io:format(" ~n"),
- %   pod:delete(node(),PodId),
+    pod:delete(node(),PodId),
     init:stop(),
     ok.
 
@@ -82,8 +83,23 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 	    ok=container:create(Pod,PodId,
 				[{{service,"lib_service"},
 				  ?LIB_SERVICE_SRC}
-				]);
-	true ->
+				]),
+	    if 
+		ServiceId/="dns_service"->
+		    {ok,DnsTest}=pod:create(node(),"pod_dns_test"),
+		    ok=container:create(DnsTest,"pod_dns_test",
+					[{{service,"lib_service"},
+					  ?LIB_SERVICE_SRC}
+					]),
+		    ok=container:create(DnsTest,"pod_dns_test",
+					[{{service,"dns_service"},
+					  {dir,"/home/pi/erlang/c/source"}}
+					]),    
+		    ok=rpc:call(DnsTest,lib_service,start_tcp_server,[?DNS_ADDRESS,parallell]);
+		true->
+		    ok
+	    end;
+	true->
 	    ok
     end,
     ok=container:create(Pod,PodId,
@@ -92,15 +108,17 @@ do_unit_test([Info|T],Pod,PodId,Acc) ->
 			]),
     R={rpc:call(Pod,TestModule,test,[],2*60*1000),ServiceId,TestModule,?MODULE,?LINE},
     io:format("Test result  ~p~n",[R]),
+    if 
+	ServiceId/="dns_service"->
+	    PodDns2=misc_lib:get_node_by_id("pod_dns_test"),
+	    rpc:call(PodDns2,lib_service,stop_tcp_server,[?DNS_ADDRESS]),
+	    container:delete(PodDns2,"pod_dns_test",["dns_service"]),
+	    pod:delete(node(),"pod_dns_test");
+        true->
+	    ok
+    end, 
     container:delete(Pod,PodId,["lib_service"]),
     container:delete(Pod,PodId,[ServiceId]),
-  %  case PreLoad of
-%	false->
-	 %   container:delete(Pod,PodId,["lib_service"]),
-%	    container:delete(Pod,PodId,[ServiceId]);
-%	true->
-%	    ok
-%	end,
     do_unit_test(T,Pod,PodId,[{R,ServiceId}|Acc]).
 
 %% --------------------------------------------------------------------

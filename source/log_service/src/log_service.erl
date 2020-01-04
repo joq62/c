@@ -25,7 +25,7 @@
 %% --------------------------------------------------------------------
 
 
--record(state,{}).
+-record(state,{myip,dns_address,dns_socket}).
 
 %% Definitions 
 -define(HB_INTERVAL,1*20*1000).
@@ -119,13 +119,20 @@ heart_beat(Interval)->
 %
 %% --------------------------------------------------------------------
 init([]) ->
-    % init logfile 
-   ok=log:init_logfile(),
- %   {ok,Info} = file:consult(?NODE_CONFIG),
- %   {controller_pods,ControllerPods}=lists:keyfind(controller_pods,1,Info),
-  %  {sd_pods,SdPods}=lists:keyfind(sd_pods,1,Info),
-  %  spawn(fun()->h_beat(?HB_INTERVAL) end),
-    {ok, #state{}}.   
+       % Initiated the app
+    {ok,[{MyIpAddr,MyPort},
+	 {DnsIpAddr,DnsPort},
+	 Socket
+	]}=misc_lib:app_start(?MODULE),
+    %% Add service specific init 
+        % init logfile 
+    ok=log:init_logfile(),	
+    
+% spawn(fun()->do_poll(?POLL_INTERVAL) end),
+    
+    {ok, #state{myip={MyIpAddr,MyPort},
+		dns_address={DnsIpAddr,DnsPort},
+		dns_socket=Socket}}. 
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
