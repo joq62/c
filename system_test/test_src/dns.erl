@@ -41,7 +41,7 @@ start()->
     % get dns ip addr
     {IpAddr,Port}=lib_service:dns_address(),
     % R=io:format("~p~n",[lib_service:dns_address()]),
-    R=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{dns_service,ping,[]}]),
+    _R=rpc:call(node(),tcp_client,call,[{IpAddr,Port},{dns_service,ping,[]}]),
  %   io:format("~p~n",[R]),
     io:format(" ~n"),
     io:format("~p",[time()]),
