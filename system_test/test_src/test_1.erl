@@ -46,7 +46,11 @@ start()->
     io:format("12+30= ~p~n",[R2]), 
     [[IP2,Port2,_]|_]=tcp_client:call(?DNS_ADDRESS,{dns_service,get,["iaas_service"]}),
     R22=tcp_client:call({IP2,Port2},{iaas_service,all,[]}),
-    io:format(" ~p~n",[R22]), 
+    io:format("R22 ~p~n",[R22]), 
+    rpc:call(w12_computer@asus,init,stop,[]),
+    tcp_client:call({IP2,Port2},{iaas_service,check_all_status,[]}),
+    R23=tcp_client:call({IP2,Port2},{iaas_service,all,[]}),
+    io:format("R23 ~p~n",[R23]), 
 
 
 
