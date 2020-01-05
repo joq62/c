@@ -1,0 +1,118 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description :
+%%%
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(dfs_test).
+
+
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% External exports
+-export([regular/2,dir/2]).
+
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+
+
+%% --------------------------------------------------------------------
+%% Function: handle_call/3
+%% Description: Handling call messages
+%% Returns: {reply, Reply, State}          |
+%%          {reply, Reply, State, Timeout} |
+%%          {noreply, State}               |
+%%          {noreply, State, Timeout}      |
+%%          {stop, Reason, Reply, State}   | (terminate/2 is called)
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+regular(Next_Fullname,Acc)->
+    case filename:extension(Next_Fullname) of
+	".JPG"->
+	    Acc1=[{regular,Next_Fullname}|Acc];
+	_->
+	    Acc1=Acc
+    end,
+    {ok,Acc1}.
+
+dir(Next_Fullname,Acc)->
+    Acc1=[{dir,Next_Fullname}|Acc],
+    {ok,Acc1}.
+
+
+
+
+dfs(RootDir,Module)->
+    Reply=dfs(RootDir,Module,[]),
+    Reply.
+    
+
+dfs(Path,Module,Acc)->
+    case filelib:is_dir(Path) of
+	true ->
+	    case file:list_dir(Path)of
+		{ok,Path_dir_list} ->
+		    {ok,Acc1} = dfs(Path_dir_list,Path,Module,Acc),
+		    Result={ok,Acc1};
+		{error,Result} ->
+		    io:format("Error - Root is not a directory ~p~n",[Path])
+	    end;
+	false ->
+	    Result = {error},
+	    io:format("Error - Root is not a directory ~p~n",[Path])
+    end,
+    Result.
+
+%%
+%% Local Functions
+%%
+		
+dfs([],_Path,_Module,Acc) ->
+      {ok,Acc};
+	
+dfs(Dir_list,Path,Module,Acc) ->
+    [Next_node|T] = Dir_list,
+    Next_Fullname = filename:join(Path,Next_node),
+    case file_type(Next_Fullname) of
+	regular ->
+	    {ok,Acc1} = Module:regular(Next_Fullname,Acc);
+	directory ->
+	    case file:list_dir(Next_Fullname) of
+		{ok,Next_node_Dir_list} ->
+		    {ok,Acc2} = Module:dir(Next_Fullname,Acc),
+		    {ok,Acc1} = dfs(Next_node_Dir_list,Next_Fullname,Acc2,Action);
+		{error, Reason} ->          %% troligen en fil som det inte går att accessa ex H directory
+		    io:format("Error in dfs ~p~n",[Reason]),
+		    io:format("Error in dir/file ~p~n",[file:list_dir(Next_Fullname)]),
+		    {ok,Acc1}= dfs(T,Path,Acc,Action)
+	    end;
+	X ->
+	    io:format("Error in dfs ~p~n",[X]),
+	    {ok,Acc1}= dfs(T,Path,Acc,Action)
+    end,
+    dfs(T,Path,Acc1,Action).
+
+
+%%********************************************************************
+% action on on files and directories in this example  count files and directories
+% {NumFiles,NumDirs}
+% 
+
+%%********************************************************************
+
+file_type(File) ->
+    case file:read_file_info(File) of
+	{ok, Facts} ->
+	    case Facts#file_info.type of
+		regular   -> regular;
+		directory -> directory;
+		X         -> {error,X}
+	    end;
+	Y ->
+	    {error,Y}
+    end.
