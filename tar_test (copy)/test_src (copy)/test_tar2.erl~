@@ -8,7 +8,7 @@
 %%% Result is in a List and Module defines the elements in the list
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(dfs).
+-module(test_tar2).
 
 
 %% --------------------------------------------------------------------
@@ -18,28 +18,32 @@
 -include_lib("kernel/include/file.hrl").
 %% --------------------------------------------------------------------
 %% External exports
--export([start/3]).
+-export([search/2,search/4]).
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+
+search(RootDir,Module)->
+    Reply=search(RootDir,Module,[],[]),
+    Reply.
     
 %% ====================================================================
 %% External functions
 %% ====================================================================
 
-start(RootDir,TarDir,Acc)->
-    Result=case filelib:is_dir(RootDir) of
+search(Path,Module,AccRegular,AccDir)->
+    Result=case filelib:is_dir(Path) of
 	       true ->
-		   case file:list_dir(RootDir)of
-		       {ok,RootDirList} ->
-			   search(RootDirList,RootDir,TarDir,Acc);
+		   case file:list_dir(Path)of
+		       {ok,Path_dir_list} ->
+			   search(Path_dir_list,Path,Module,AccRegular,AccDir);
 		       {error,Error} ->
-			   io:format("Error -  is not a directory ~p~n",[RootDir]),
-			   {error,[unmatched,Error,RootDir,?MODULE,?LINE]}		  
+			   io:format("Error -  is not a directory ~p~n",[Path]),
+			   {error,[unmatched,Error,Path,?MODULE,?LINE]}		  
 		   end;
 	       false ->
-		   {error,[is_not_a_directory,RootDir,?MODULE,?LINE]}
+		   {error,[is_not_a_directory,Path,?MODULE,?LINE]}
 	   % io:format("Error - Root is not a directory ~p~n",[Path])
     end,
     Result.
@@ -48,38 +52,32 @@ start(RootDir,TarDir,Acc)->
 %% Local Functions
 %%
 		
-search([],_Path,_TarDir,Result) ->
-      Result;
+search([],_Path,_Module,AccRegular,AccDir) ->
+      {AccRegular,AccDir};
 	
-search([NextNode|T],Path,TarDir,Acc) ->
-    NextFullname = filename:join(Path,NextNode),
-    case file_type(NextFullname) of
+search(Dir_list,Path,Module,AccRegular,AccDir) ->
+    [Next_node|T] = Dir_list,
+    Next_Fullname = filename:join(Path,Next_node),
+    case file_type(Next_Fullname) of
 	regular ->
-	    %do_someting with files
-	    io:format("regular  ~p~n",[{"NextFullname",":=> ",NextFullname,?MODULE,?LINE}]), 
-	    NewTarDir=TarDir,
-	    NewAcc=Acc;
+	    NewAccRegular=Module:regular(Next_Fullname,AccRegular),
+	    NewAccDir=AccDir;
 	directory ->
-	    case file:list_dir(NextFullname) of
-		{ok,NextNodeDirList} ->
-			  %Start
-		    NewTarDir=filename:join([TarDir,NextNode]),
-		    io:format(" ~p~n",[{"NewTarDir",":=> ",NewTarDir,?MODULE,?LINE}]), 
-			   % End 
-		    NewAcc=search(NextNodeDirList,NextFullname,NewTarDir,Acc); 
+	    case file:list_dir(Next_Fullname) of
+		{ok,Next_node_Dir_list} ->
+		    AccDir1= Module:dir(Next_Fullname,AccDir),
+		    {NewAccRegular,NewAccDir} = search(Next_node_Dir_list,Next_Fullname,Module,AccRegular,AccDir1); 
 		{error,_Reason} ->          
 		    %% troligen en fil som det inte går att accessa ex H directory
 		    %io:format("Error in search ~p~n",[Reason]),
 		    %io:format("Error in dir/file ~p~n",[file:list_dir(Next_Fullname)]),
-		    NewTarDir=TarDir,
-		    NewAcc=search(T,Path,TarDir,Acc)
+		    {NewAccRegular,NewAccDir}=search(T,Path,Module,AccRegular,AccDir)
 	    end;
-	X ->
-	    io:format("Error ~p~n",[{NextFullname,X,?MODULE,?LINE}]),
-	    NewTarDir=TarDir,	    
-	    NewAcc=search(T,Path,TarDir,Acc)
+	       X ->
+		   io:format("Error ~p~n",[{?MODULE,?LINE,X}]),
+		   {NewAccRegular,NewAccDir}=search(T,Path,Module,AccRegular,AccDir)
     end,
-    search(T,Path,NewTarDir,NewAcc).
+    search(T,Path,Module,NewAccRegular,NewAccDir).
 
 
 %%******************************************************************

@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(test_tar_v1). 
+-module(test_tar). 
   
  
 
@@ -45,6 +45,37 @@
 %[{"/home/pi/erlang/tar_test/root/dir20","/home/pi/erlang/tar_test/root/dir20"},
 % {"/home/pi/erlang/tar_test/root","/home/pi/erlang/tar_test/tar_dir"}]
 
+dir(DirName,[{_,TarDir}])->
+    io:format(" ~p~n",[{start, ?MODULE,?LINE}]), 
+    io:format(" ~p~n",[{"DirName",":=> ",DirName,?MODULE,?LINE}]), 
+%    io:format(" ~p~n",[{"TarDir",":=> ",TarDir,?MODULE,?LINE}]),  
+   
+    % Create a tar file
+%    {ok,Files}=file:list_dir(DirName),
+%    TarFileName=filename:basename(DirName)++".tar",
+%    ok=erl_tar:create(TarFileName,Files),
+    
+    % Creat if needed dir to  put the tar file obs basename
+    NewTarDir=filename:join([TarDir,filename:basename(DirName)]),
+  %  io:format(" ~p~n",[{"NewTarDir",":=> ",NewTarDir,?MODULE,?LINE}]),  
+    case filelib:is_dir(NewTarDir) of
+	true-> % already exists
+	    ok;
+	false->
+	   % ok=file:make_dir(NewTarDir)
+	    glurk
+    end,
+ %   {ok,_}=file:copy(filename:join([DirName,TarFileName]),NewTarDir),
+  %  io:format("dir = ~p~n",[{DirName,Files,?MODULE,?LINE}]),
+  %  io:format(" ~p~n",[{"[{DirName,NewTarDir}|Acc]",":=> ",[{DirName,NewTarDir}|Acc],?MODULE,?LINE}]), 
+    io:format(" ~p~n",[{stopp, ?MODULE,?LINE}]), 
+    [{DirName,NewTarDir}].
+
+regular(FileName,Acc)->
+  %  io:format("regular = ~p~n",[{FileName,?MODULE,?LINE}]),
+    Acc.
+
+    
 start()->
   %  SourceDir="/home/pi/erlang/tar_test/c/source/adder_service",
 %    SourceDir="/home/pi/erlang/tar_test/c/source/adder_service",
@@ -55,12 +86,11 @@ start()->
 
     SourceDir="/home/pi/erlang/tar_test/root",
     TarDir="/home/pi/erlang/tar_test/tar_dir",
-    R=dfs:start(SourceDir,TarDir,[]),
-    io:format(" ~p~n",[{"R",":=> ",R,?MODULE,?LINE}]), 
- %   {RegularResult,DirResult}=dfs:search(SourceDir,?MODULE,[],[{SourceDir,TarDir}]),
-   % io:format(" ~p~n",[{"RegularResult",":=> ",RegularResult,?MODULE,?LINE}]), 
-   % io:format(" ~p~n",[{"DirResult",":=> ",DirResult,?MODULE,?LINE}]), 
-   % VisitedDirs=[DirName||{DirName,_}<-DirResult],
+
+    {RegularResult,DirResult}=dfs:search(SourceDir,?MODULE,[],[{SourceDir,TarDir}]),
+    io:format(" ~p~n",[{"RegularResult",":=> ",RegularResult,?MODULE,?LINE}]), 
+    io:format(" ~p~n",[{"DirResult",":=> ",DirResult,?MODULE,?LINE}]), 
+    VisitedDirs=[DirName||{DirName,_}<-DirResult],
   %  io:format(" ~p~n",[{"VisitedDirs",":=> ",VisitedDirs,?MODULE,?LINE}]), 
    %  io:format(" ~p~n",[{"DfsResult",":=> ",DfsResult,?MODULE,?LINE}]), 
     init:stop().    
