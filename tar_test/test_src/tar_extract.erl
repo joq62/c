@@ -3,7 +3,7 @@
 %%% Description :
 
 %%% -------------------------------------------------------------------
--module(tar_create).
+-module(tar_extract).
 
 
 %% --------------------------------------------------------------------
@@ -12,7 +12,8 @@
 -include_lib("kernel/include/file.hrl").
 %% --------------------------------------------------------------------
 %% External exports
--export([start/1]).
+-export([extract/2,
+	 start/1]).
 %-compile(export_all).
 %% ====================================================================
 %% External functions
@@ -21,7 +22,13 @@
 %% ====================================================================
 %% External functions
 %% ===================================================================
-start([RootDir,TarDir,Acc])->
+extract(TarFile,Destination)->
+    Result=erl_tar:extract({binary,TarFile},[{cwd,Destination},verbose]),
+    Result.
+
+
+
+start([RootDir,Acc])->
     BaseName=filename:basename(RootDir),
     Result=case filelib:is_dir(BaseName) of
 	       true->
@@ -31,49 +38,9 @@ start([RootDir,TarDir,Acc])->
 		       true ->
 			   case file:list_dir(RootDir)of
 			       {ok,RootDirList} ->
-						% Creat inital dir and att tot tar dir
-				   % dfs down: creat dir and copy files 
-				   % search in next nod 
-				   % creat tar dir and copy it!
-				   RootBaseName=filename:basename(RootDir),
-			%	   io:format("~p~n",[{"RootBaseName","->",RootBaseName,?MODULE,?LINE}]),
-				   case filelib:is_dir(RootBaseName) of
-				       true->
-					   ok;
-				       false->
-					   ok=file:make_dir(RootBaseName)
-				   end,
-				   {ok,RootFileNames}=file:list_dir(RootDir),
-				   Regular2Copy=[{FileName,filename:join([RootDir,FileName])}||FileName<-RootFileNames,
-											     filelib:is_regular(FileName)],
-				 
-				   CopiedFiles=[{filename:join([RootBaseName,FileName]),file:copy(FileName2Copy,filename:join([RootBaseName,FileName]))}
-						||{FileName,FileName2Copy}<-Regular2Copy],
-			%	   io:format("~p~n",[{"CopiedFiles","->",CopiedFiles,?MODULE,?LINE}]),
-				  % Magic
-				   RootTarDir=filename:join([".",RootBaseName]), 
-			%	   io:format("~p~n",[{"RootTarDir","->",RootTarDir,?MODULE,?LINE}]),
-				   SearchResult=search([RootDirList,RootDir,RootTarDir,[]]),
-
-				   %creater tar file
-				   {ok,FileNames}=file:list_dir(RootBaseName),
-			%	   io:format("~p~n",[{"FileNames","->",FileNames,?MODULE,?LINE}]),
-				   Files2Tar=[filename:join([RootBaseName,FileName])||FileName<-FileNames],
-				   TarFileName=RootBaseName++".tar",
-				   TarCreatResult=erl_tar:create(TarFileName,Files2Tar),
-				   [TarCreatResult|SearchResult];
-		%	   ,
-		%	  
-			   
-			   
-
-		%	  io:format("~p~n",[{"BaseName","->",BaseName,?MODULE,?LINE}]),
-				   
-		%	   io:format("~p~n",[{"RootTarDir","->",RootTarDir}]),
-			 %  ok=file:make_dir(NewTarDir),
-		%	   FileNames=[filename:join([RootDir,FileName])||FileName<-RootDirList,FileName/=".git"],
-		%	   Acc1=[{NewTarDir,FileNames}|Acc],
-				  
+						
+				   SearchResult=search([RootDirList,RootDir,[]]);
+					  
 			       {error,Error} ->
 				   io:format("Error -  is not a directory ~p~n",[RootDir]),
 				   {error,[unmatched,Error,RootDir,?MODULE,?LINE]}		  

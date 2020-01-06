@@ -59,31 +59,52 @@
   %  ExtractDir="/home/pi/erlang/c/tar_test/c/tar_test/extract_dir",
 
 start()->
-
-    io:format("------------ Create tar files  ~n"), 
-    % Create tar dirs
-    TarDir="/home/pi/erlang/c/tar_test/tar_dir",
-    % Cleanup 
-    os:cmd("rm -r "++TarDir++"/*"),
-    SourceDir="/home/pi/erlang/c/tar_test/c/source/",
-    CreateTarDirResult=lists:reverse(tar_create:start([SourceDir,TarDir,[{[],0}]])),
- %   io:format(" ~p~n",[{"CreateTarDirResult",":=> ",CreateTarDirResult,?MODULE,?LINE}]), 
-
-    %Extract
-%    io:format(">>>>>>>>>>>>>>> Extract tar files  ~n"), 
-    ExtractDir="/home/pi/erlang/c/tar_test/extract_dir",   
- %   os:cmd("rm -r "++ExtractDir++"/*"),
-   % NewTarDir=filename:join([TarDir]),
-  %  ExtractTarDirResult=tar_extract:start([TarDir,ExtractDir,[{[],0}]]),
-  %  TarFile="/home/pi/erlang/c/tar_test/tar_dir/adder_service.tar",
-   % ExtractTarDirResult=tar_extract:file(TarFile,ExtractDir),
+    SourceDir="/home/pi/erlang/c/source/adder_service",
+    TarDir=".",
+    BaseName=filename:basename(SourceDir),
+    CR=create(SourceDir,TarDir),
+    io:format(" ~p~n",[{"CR",":=> ",CR,?MODULE,?LINE}]),
+      
     
-  %  io:format(" ~p~n",[{"ExtractTarDirResult",":=> ",ExtractTarDirResult,?MODULE,?LINE}]), 
+    Destination="service_dir",
+    {ok,Cwd}=file:get_cwd(),
+    TarFileName=filename:join([Cwd,BaseName++".tar"]),
+    {ok,Bytes}=file:read_file(TarFileName),
+    ER=extract(Bytes,Destination),
+     io:format(" ~p~n",[{"ER",":=> ",ER,?MODULE,?LINE}]),
 
+    
     init:stop().
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
+create(SourceDir,TarDir)->
+   io:format("------------ Create tar files  ~n"), 
+    % Create tar dirs
+   
+    % Cleanup 
+  %  os:cmd("rm -r "++TarDir++"/*"),
+    CreateTarDirResult=lists:reverse(tar_create:start([SourceDir,TarDir,[{[],0}]])),
+ %   io:format(" ~p~n",[{"CreateTarDirResult",":=> ",CreateTarDirResult,?MODULE,?LINE}]), 
 
+   
+ 
+    ok.
+
+extract(TarFile,Destination)->
+    io:format(" ~p~n",[{"TarFile",":=> ",?MODULE,?LINE}]),
+    io:format(" ~p~n",[{"Destination",":=> ",Destination,?MODULE,?LINE}]),
+    %Extract
+    io:format(">>>>>>>>>>>>>>> Extract tar files  ~n"), 
+    case filelib:is_dir(Destination) of
+	true->
+	    {error,[copy_to_existing_dir,Destination,?MODULE,?LINE]};
+	false->
+	    ok,
+	    file:make_dir(Destination)
+    end,  
+    ExtractTarDirResult=tar_extract:extract(TarFile,Destination).
+ 
+  %  io:format(" ~p~n",[{"ExtractTarDirResult",":=> ",ExtractTarDirResult,?MODULE,?LINE}]),  ok.
 
