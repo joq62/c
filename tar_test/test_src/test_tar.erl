@@ -65,9 +65,9 @@ start()->
     TarDir="/home/pi/erlang/c/tar_test/tar_dir",
     % Cleanup 
     os:cmd("rm -r "++TarDir++"/*"),
-    SourceDir="/home/pi/erlang/c/tar_test/c/source/adder_service",
-    CreateTarDirResult=tar_create:start([SourceDir,TarDir,[{[],0}]]),
-    %io:format(" ~p~n",[{"CreateTarDirResult",":=> ",CreateTarDirResult,?MODULE,?LINE}]), 
+    SourceDir="/home/pi/erlang/c/tar_test/c/source/",
+    CreateTarDirResult=lists:reverse(tar_create:start([SourceDir,TarDir,[{[],0}]])),
+ %   io:format(" ~p~n",[{"CreateTarDirResult",":=> ",CreateTarDirResult,?MODULE,?LINE}]), 
 
     %Extract
 %    io:format(">>>>>>>>>>>>>>> Extract tar files  ~n"), 

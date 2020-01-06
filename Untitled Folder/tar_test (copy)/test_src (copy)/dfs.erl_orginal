@@ -1,0 +1,97 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description :
+%%% dfs:scan(RootDir,Module) -> [Acc]
+%%% Excutes a depth first search from RootDir and actions on files or
+%%% directories are defined by Module. Actions on regular files is
+%%% Module:regular and on directories Module:dir
+%%% Result is in a List and Module defines the elements in the list
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(dfs).
+
+
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+
+-include_lib("kernel/include/file.hrl").
+%% --------------------------------------------------------------------
+%% External exports
+-export([search/2,search/4]).
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+
+search(RootDir,Module)->
+    Reply=search(RootDir,Module,[],[]),
+    Reply.
+    
+%% ====================================================================
+%% External functions
+%% ====================================================================
+
+search(Path,Module,AccRegular,AccDir)->
+    Result=case filelib:is_dir(Path) of
+	       true ->
+		   case file:list_dir(Path)of
+		       {ok,Path_dir_list} ->
+			   search(Path_dir_list,Path,Module,AccRegular,AccDir);
+		       {error,Error} ->
+			   io:format("Error -  is not a directory ~p~n",[Path]),
+			   {error,[unmatched,Error,Path,?MODULE,?LINE]}		  
+		   end;
+	       false ->
+		   {error,[is_not_a_directory,Path,?MODULE,?LINE]}
+	   % io:format("Error - Root is not a directory ~p~n",[Path])
+    end,
+    Result.
+
+%%
+%% Local Functions
+%%
+		
+search([],_Path,_Module,AccRegular,AccDir) ->
+      {AccRegular,AccDir};
+	
+search(Dir_list,Path,Module,AccRegular,AccDir) ->
+    [Next_node|T] = Dir_list,
+    Next_Fullname = filename:join(Path,Next_node),
+    case file_type(Next_Fullname) of
+	regular ->
+	    NewAccRegular=Module:regular(Next_Fullname,AccRegular),
+	    NewAccDir=AccDir;
+	directory ->
+	    case file:list_dir(Next_Fullname) of
+		{ok,Next_node_Dir_list} ->
+		    AccDir1= Module:dir(Next_Fullname,AccDir),
+		    {NewAccRegular,NewAccDir} = search(Next_node_Dir_list,Next_Fullname,Module,AccRegular,AccDir1); 
+		{error,_Reason} ->          
+		    %% troligen en fil som det inte går att accessa ex H directory
+		    %io:format("Error in search ~p~n",[Reason]),
+		    %io:format("Error in dir/file ~p~n",[file:list_dir(Next_Fullname)]),
+		    {NewAccRegular,NewAccDir}=search(T,Path,Module,AccRegular,AccDir)
+	    end;
+	       X ->
+		   io:format("Error ~p~n",[{?MODULE,?LINE,X}]),
+		   {NewAccRegular,NewAccDir}=search(T,Path,Module,AccRegular,AccDir)
+    end,
+    search(T,Path,Module,NewAccRegular,NewAccDir).
+
+
+%%******************************************************************
+% 
+%%********************************************************************
+
+file_type(File) ->
+    case file:read_file_info(File) of
+	{ok, Facts} ->
+	    case Facts#file_info.type of
+		regular   -> regular;
+		directory -> directory;
+		X         -> {error,X}
+	    end;
+	Y ->
+	    {error,Y}
+    end.

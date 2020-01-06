@@ -22,23 +22,67 @@
 %% External functions
 %% ===================================================================
 start([RootDir,TarDir,Acc])->
-    Result=case filelib:is_dir(RootDir) of
-	       true ->
-		   case file:list_dir(RootDir)of
-		       {ok,RootDirList} ->
-			   % Creat inital dir and att tot tar dir
-			   BaseName=filename:basename(RootDir),
-			   NewTarDir=filename:join([TarDir,BaseName]),
-			   ok=file:make_dir(NewTarDir),
-			   search([RootDirList,RootDir,NewTarDir,Acc]);
-		       {error,Error} ->
-			   io:format("Error -  is not a directory ~p~n",[RootDir]),
-			   {error,[unmatched,Error,RootDir,?MODULE,?LINE]}		  
-		   end;
-	       false ->
-		   {error,[is_not_a_directory,RootDir,?MODULE,?LINE]}
+    BaseName=filename:basename(RootDir),
+    Result=case filelib:is_dir(BaseName) of
+	       true->
+		   {error,[root_dir_is_in_cwd,RootDir,?MODULE,?LINE]};
+	       false->
+		   case filelib:is_dir(RootDir) of
+		       true ->
+			   case file:list_dir(RootDir)of
+			       {ok,RootDirList} ->
+						% Creat inital dir and att tot tar dir
+				   % dfs down: creat dir and copy files 
+				   % search in next nod 
+				   % creat tar dir and copy it!
+				   RootBaseName=filename:basename(RootDir),
+			%	   io:format("~p~n",[{"RootBaseName","->",RootBaseName,?MODULE,?LINE}]),
+				   case filelib:is_dir(RootBaseName) of
+				       true->
+					   ok;
+				       false->
+					   ok=file:make_dir(RootBaseName)
+				   end,
+				   {ok,RootFileNames}=file:list_dir(RootDir),
+				   Regular2Copy=[{FileName,filename:join([RootDir,FileName])}||FileName<-RootFileNames,
+											     filelib:is_regular(FileName)],
+				 
+				   CopiedFiles=[{filename:join([RootBaseName,FileName]),file:copy(FileName2Copy,filename:join([RootBaseName,FileName]))}
+						||{FileName,FileName2Copy}<-Regular2Copy],
+			%	   io:format("~p~n",[{"CopiedFiles","->",CopiedFiles,?MODULE,?LINE}]),
+				  % Magic
+				   RootTarDir=filename:join([".",RootBaseName]), 
+			%	   io:format("~p~n",[{"RootTarDir","->",RootTarDir,?MODULE,?LINE}]),
+				   SearchResult=search([RootDirList,RootDir,RootTarDir,[]]),
+
+				   %creater tar file
+				   {ok,FileNames}=file:list_dir(RootBaseName),
+			%	   io:format("~p~n",[{"FileNames","->",FileNames,?MODULE,?LINE}]),
+				   Files2Tar=[filename:join([RootBaseName,FileName])||FileName<-FileNames],
+				   TarFileName=RootBaseName++".tar",
+				   TarCreatResult=erl_tar:create(TarFileName,Files2Tar),
+				   [TarCreatResult|SearchResult];
+		%	   ,
+		%	  
+			   
+			   
+
+		%	  io:format("~p~n",[{"BaseName","->",BaseName,?MODULE,?LINE}]),
+				   
+		%	   io:format("~p~n",[{"RootTarDir","->",RootTarDir}]),
+			 %  ok=file:make_dir(NewTarDir),
+		%	   FileNames=[filename:join([RootDir,FileName])||FileName<-RootDirList,FileName/=".git"],
+		%	   Acc1=[{NewTarDir,FileNames}|Acc],
+				  
+			       {error,Error} ->
+				   io:format("Error -  is not a directory ~p~n",[RootDir]),
+				   {error,[unmatched,Error,RootDir,?MODULE,?LINE]}		  
+			   end;
+		       false ->
+			   {error,[is_not_a_directory,RootDir,?MODULE,?LINE]}
 	   % io:format("Error - Root is not a directory ~p~n",[Path])
-    end,
+		   end
+	   end,
     Result.
 
 %%
@@ -49,6 +93,11 @@ search([[],_Path,_TarDir,Result]) ->
       Result;
 	
 search([[NextNode|T],Path,TarDir,Acc]) ->
+  %  io:format(" START ++++++++++++++++~n"),
+  %  io:format("~p~n",[{"NextNode","->",NextNode,?MODULE,?LINE}]),
+  %  io:format("~p~n",[{"Path","->",Path,?MODULE,?LINE}]),
+  %  io:format("~p~n",[{"TarDir","->",TarDir,?MODULE,?LINE}]),
+  %  io:format(" STOP -----~n"),
     NextFullname = filename:join(Path,NextNode),
     case file_type(NextFullname) of
 	regular ->
@@ -56,26 +105,75 @@ search([[NextNode|T],Path,TarDir,Acc]) ->
 	  %  io:format("regular  ~p~n",[{"NextFullname",":=> ",NextFullname,?MODULE,?LINE}]), 
 	    NewAcc=Acc;
 	directory ->
+	  
+	  %  io:format(" START ++++++++++++++++~n"),
+%	    io:format("~p~n",[{"NextNode","->",NextNode,?MODULE,?LINE}]),
+%	    io:format("~p~n",[{"ParentDir","->",ParentDir,?MODULE,?LINE}]),
+%	    io:format("~p~n",[{"Path","->",Path,?MODULE,?LINE}]),
+%	    io:format("~p~n",[{"TarDir","->",TarDir,?MODULE,?LINE}]),
 	    case file:list_dir(NextFullname) of
 		{ok,NextNodeDirList} ->
 		%    io:format(" ~p~n",[{"NextFullname",":=> ",NextFullname,?MODULE,?LINE}]),
-                 	  
-		       %Start		  
-		    TarFileName=NextNode++".tar",
-		    %Remove ".git"
-
-		    Files2Tar=[FileName||FileName<-NextNodeDirList,FileName/=".git"],
-		    TarResult=erl_tar:create(TarFileName,Files2Tar),
+		    % 1 dsf down: 
+		    % 1.1 Create dir tar dir
+		    % 1.2 Create tar file
+		    % 1.3 move tar file -> tardir 
 		    
-		    BaseName=filename:basename(TarDir),
+		    %RootBaseName=filename:basename(RootDir),
+		    
+		  %  io:format("~p~n",[{"RootBaseName","->",RootBaseName,?MODULE,?LINE}]),
 		    NextTarDir=filename:join([TarDir,NextNode]),
-	%	    ok=create_tar_files(TarDir,NextFullname),
-		    ok=create_tar_files(NextTarDir,NextFullname),		    
-		    [{VisitedDirs,NumDirs}]=Acc,
-		    Acc1=[{[NextFullname|VisitedDirs],NumDirs+1}],
-			   % End 		
-    
-		    NewAcc=search([NextNodeDirList,NextFullname,NextTarDir,Acc1]); 
+		  %  io:format("~p~n",[{"NextTarDir","->",NextTarDir,?MODULE,?LINE}]),
+		    
+		    case filelib:is_dir(NextNode) of
+			true->
+			    ok;
+			false->
+			    ok=file:make_dir(NextTarDir) %Change glurk?
+		    end,
+		    
+
+		    SearchResult=search([NextNodeDirList,NextFullname,NextTarDir,[]]),
+		    
+		    % NextTarDir can be updated by sub dir actions
+		   
+
+		    % Add regular files to Next tar dir from source
+		    DirsRemoved=[F||F<-NextNodeDirList,filelib:is_regular(filename:join(NextFullname,F))],
+		    Regular2Copy=[{FileName,filename:join([NextFullname,FileName])}||FileName<-DirsRemoved],
+		    CopiedFiles2TarDir=[{filename:join([NextTarDir,FileName]),file:copy(FileName2Copy,filename:join([NextTarDir,FileName]))}
+						||{FileName,FileName2Copy}<-Regular2Copy],
+		    {ok,X}=file:list_dir(NextTarDir),
+		    UpdatedFileNames=[F||F<-X,filelib:is_regular(filename:join(NextTarDir,F))],
+		    io:format("~p~n",[{"UpdatedFileNames","->",UpdatedFileNames,?MODULE,?LINE}]),
+		    
+		    % Copy files from TempDir  to ensure that tar files are included!
+		    
+		    ok=file:make_dir(NextNode),  %TempDir
+		    Regular2TempDir=[{FileName,filename:join([NextTarDir,FileName])}||FileName<-UpdatedFileNames],
+		   % io:format("~p~n",[{"Regular2TempDir","->",Regular2TempDir,?MODULE,?LINE}]),
+		    CopiedFiles2TempDir=[{filename:join([NextNode,FileName]),file:copy(FileName2Copy,filename:join([NextNode,FileName]))}
+						||{FileName,FileName2Copy}<-Regular2TempDir],
+		    
+		    		   
+				   %creater tar file and copy to parent dir
+	
+				 Files2Tar=[filename:join([NextNode,FileName])||FileName<-UpdatedFileNames],
+
+		    io:format("~p~n",[{"Files2Tar","->",Files2Tar,?MODULE,?LINE}]),
+		    TarFileName=NextNode++".tar",
+		  %  io:format("~p~n",[{"TarFileName","->",TarFileName,?MODULE,?LINE}]),
+		    TarCreatResult=erl_tar:create(TarFileName,Files2Tar),
+		    io:format("~p~n",[{"TarCreatResult","->",TarCreatResult,?MODULE,?LINE}]),
+		 %   io:format("~p~n",[{"NextTarDir","->",NextTarDir,?MODULE,?LINE}]),
+		    {ok,_}=file:copy(TarFileName,filename:join([TarDir,TarFileName])),
+		    
+		    % Clean up
+		    os:cmd("rm -r "++NextNode),
+		    file:delete(TarFileName),
+		    
+		 %   NewAcc=[glurk|SearchResult];
+		    NewAcc=[TarCreatResult|SearchResult];
 		{error,_Reason} ->          
 		    %% troligen en fil som det inte går att accessa ex H directory
 		    %io:format("Error in search ~p~n",[Reason]),
@@ -89,41 +187,46 @@ search([[NextNode|T],Path,TarDir,Acc]) ->
     search([T,Path,TarDir,NewAcc]).
 
 create_tar_files(TarDir,SourceDir)->
-  %  io:format("~p~n",[{"TarDir","->",TarDir,?MODULE,?LINE}]),
-  %  io:format("~p~n",[{"SourceDir","->",SourceDir,?MODULE,?LINE}]),
-    %  Step 1
+  %   io:format("~p~n",[{"TarDir","->",TarDir,?MODULE,?LINE}]),
+  %   io:format("~p~n",[{"SourceDir","->",SourceDir,?MODULE,?LINE}]),
+ 
+    %{ok,RootDirFiles}=file:list_dir("."),
+    %io:format("~p~n",[{".","->",RootDirFiles,?MODULE,?LINE}]),
+    
     % Copy Files to Dir to prevent to have full path for tar
     % use temp dir to get right path service->src->files
     % Create temp dir
-    TempDir=filename:basename(TarDir),
-    io:format("rm - r ~p~n",[{"TempDir","->",TempDir,?MODULE,?LINE}]),
-    case filelib:is_dir(TempDir) of 
+    ParentDir=filename:basename(SourceDir),
+    SubDir=filename:join([TarDir,ParentDir]),
+    io:format("~p~n",[{"SubDir","->",SubDir,?MODULE,?LINE}]),
+    case filelib:is_dir(SubDir) of 
 	false->
-	   ok=file:make_dir(TempDir);
+	    ok;
+	    %ok=file:make_dir(SubDir);
 	true->
 	    ok
-    end, 
+    end,
+  %  ok=file:make_dir(filename:join(ParentDir,TarDir)), 
     % Get file names to tar and copy to Parent/Tardir  
+   % {ok,Files}=file:list_dir(filename:join([SourceDir,TarDir])),
+   % Files2Tar=[{FileName,filename:join([SourceDir,TarDir,FileName])}||FileName<-Files,FileName/=".git"],
+   % io:format("~p~n",[{"Files2Tar","->",Files2Tar,?MODULE,?LINE}]),
     
-   
-   % SourceDestFileNames=[{filename:join([NextFullname,FileName]),filename:join([TempDir,FileName]),FileName}||FileName<-FileNames,
-%							     filelib:is_regular(filename:join([TempDir,FileName]))],
- %   io:format(" ~p~n",[{"SourceDestFileNames",":=> ",SourceDestFileNames,?MODULE,?LINE}]),    
-  %  {ok,FileNames}=file:list_dir(SourceDir),
-  %  Files2Tar=[{FileName,filename:join([SourceDir,TarDir,FileName])}||FileName<-FileNames,
-%								      filelib:is_regular(filename:join([SourceDir,TarDir,FileName]))],
-   % [file:copy(File2Tar,filename:join([TempDir,FileName]))||{FileName,File2Tar}<-Files2Tar],
-  %  io:format("~p~n",[{"Files2Tar","->",Files2Tar,?MODULE,?LINE}]),
-    
-   
+ %   [file:copy(File2Tar,filename:join([ParentDir,TarDir,FileName]))||{FileName,File2Tar}<-Files2Tar],
 %    io:format("~p~n",[{filename:join(ParentDir,TarDir),"->",file:list_dir(filename:join(ParentDir,TarDir)),?MODULE,?LINE}]),
     
         % creat new tarfile list based on new dir  and do tar
-  %  {ok,NewFiles}=file:list_dir(filename:join([ParentDir,TarDir])),
-  %  NewFiles2Tar=[filename:join([ParentDir,TarDir,NewFile])||NewFile<-NewFiles],
-  %  TarFileName=TarDir++".tar",
-						% TarResult=erl_tar:create(TarFileName,NewFiles2Tar),
- %   os:cmd("rm -r "++TempDir),
+%    {ok,NewFiles}=file:list_dir(filename:join([ParentDir,TarDir])),
+%    NewFiles2Tar=[filename:join([ParentDir,TarDir,NewFile])||NewFile<-NewFiles],
+%    TarFileName=TarDir++".tar",
+ %   TarResult=erl_tar:create(TarFileName,NewFiles2Tar),
+ %   io:format("~p~n",[{"TarResult","->",TarResult,?MODULE,?LINE}]),
+
+    % cp tar files to PArent 
+  %  os:cmd("mv "++TarFileName++" "++ParentDir),
+    
+    %Remove temp dirs 
+  %  os:cmd("rm -r "++filename:join([ParentDir,TarDir])),
     ok.
 
 
